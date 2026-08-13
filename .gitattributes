@@ -1,0 +1,14 @@
+# Zeilenenden im Repo immer LF, damit das Projekt auf jedem System gleich aussieht.
+* text=auto eol=lf
+
+# gradlew wird auf Linux/macOS als Shellskript ausgefuehrt -- mit CRLF startet es nicht.
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+# Binaerdateien nie anfassen.
+*.jar binary
+*.apk binary
+*.png binary
+*.jpg binary
+*.keystore binary
+*.jks binary

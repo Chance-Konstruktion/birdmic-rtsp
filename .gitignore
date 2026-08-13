@@ -1,0 +1,28 @@
+# Build-Ausgaben
+build/
+app/build/
+.gradle/
+*.apk.idsig
+
+# Lokale SDK-Pfade -- gehoeren nie ins Repo
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystores
+*.jks
+*.keystore
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Die fertige APK im Wurzelverzeichnis wird absichtlich mitgeliefert, damit man
+# sie ohne Build installieren kann. Sie liegt ausserhalb von build/ und wird
+# deshalb von keiner Regel oben erfasst -- eine Ausnahme waere wirkungslos.
+# Bei laengerer Historie besser auf GitHub Releases umstellen.

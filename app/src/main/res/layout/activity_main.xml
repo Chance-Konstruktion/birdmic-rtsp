@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- ==== Status ==== -->
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp" />
+
+        <!-- ==== Pegel ==== -->
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/level_label"
+            android:textSize="13sp" />
+
+        <ProgressBar
+            android:id="@+id/level"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100" />
+
+        <TextView
+            android:id="@+id/peak_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textSize="12sp" />
+
+        <!-- ==== Spektrogramm ==== -->
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/spectrogram_label"
+            android:textSize="13sp" />
+
+        <net.birdmic.rtsp.SpectrogramView
+            android:id="@+id/spectrogram"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:background="#000000" />
+
+        <!-- ==== Empfänger ==== -->
+
+        <TextView
+            android:id="@+id/clients"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/stats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="monospace"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/toggle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/start" />
+
+        <Button
+            android:id="@+id/copy_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/copy_url" />
+
+        <!-- ==== Audio ==== -->
+
+        <TextView
+            style="@style/SectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/section_audio" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/source_label" />
+
+        <Spinner
+            android:id="@+id/source"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/source_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/device_label" />
+
+        <Spinner
+            android:id="@+id/device"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/samplerate_label" />
+
+        <Spinner
+            android:id="@+id/samplerate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/channels_label" />
+
+        <Spinner
+            android:id="@+id/channels"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/highpass_label" />
+
+        <Spinner
+            android:id="@+id/highpass"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/highpass_hint"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/gain_label" />
+
+        <EditText
+            android:id="@+id/gain"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="1.0"
+            android:importantForAutofill="no"
+            android:inputType="numberDecimal" />
+
+        <!-- ==== Netzwerk ==== -->
+
+        <TextView
+            style="@style/SectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/section_network" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/port_label" />
+
+        <EditText
+            android:id="@+id/port"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="8554"
+            android:importantForAutofill="no"
+            android:inputType="number" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/path_label" />
+
+        <EditText
+            android:id="@+id/path"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="audio.wav"
+            android:importantForAutofill="no"
+            android:inputType="text" />
+
+        <CheckBox
+            android:id="@+id/mdns"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/mdns_label" />
+
+        <EditText
+            android:id="@+id/mdns_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="BirdMic"
+            android:importantForAutofill="no"
+            android:inputType="text" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/mdns_hint"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/udp_timeout_label" />
+
+        <EditText
+            android:id="@+id/udp_timeout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="0"
+            android:importantForAutofill="no"
+            android:inputType="number" />
+
+        <!-- ==== Zugangsschutz ==== -->
+
+        <TextView
+            style="@style/SectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/section_auth" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/auth_hint"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <EditText
+            android:id="@+id/auth_user"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/auth_user_hint"
+            android:importantForAutofill="no"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/auth_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/auth_password_hint"
+            android:importantForAutofill="no"
+            android:inputType="textPassword" />
+
+        <!-- ==== Dauerbetrieb ==== -->
+
+        <TextView
+            style="@style/SectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/section_runtime" />
+
+        <CheckBox
+            android:id="@+id/amoled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/amoled_label" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/amoled_hint"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <CheckBox
+            android:id="@+id/autostart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/autostart" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/battery_warn_label" />
+
+        <EditText
+            android:id="@+id/battery_warn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="40"
+            android:importantForAutofill="no"
+            android:inputType="number" />
+
+        <Button
+            android:id="@+id/battery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/battery" />
+
+        <!-- ==== Logbuch ==== -->
+
+        <TextView
+            style="@style/SectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/section_log" />
+
+        <TextView
+            android:id="@+id/log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/clear_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/clear_log" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/hint"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+</ScrollView>
