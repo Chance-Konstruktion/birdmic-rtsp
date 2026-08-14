@@ -1,0 +1,85 @@
+# CI fuer BirdMic.
+#
+# Die Tests in app/src/test/ sind normale JVM-Tests, brauchen also kein
+# Geraet und keinen Emulator. Trotzdem verlangt das Android-Gradle-Plugin
+# ein installiertes SDK, sonst kommt es nicht einmal bis zur ersten Zeile
+# Testcode. Deshalb wird hier das SDK eingerichtet -- einmal, danach liegt
+# es samt Gradle-Cache im Cache des Runners.
+
+stages:
+  - test
+  - bauen
+
+variables:
+  ANDROID_SDK_ROOT: "$CI_PROJECT_DIR/.android-sdk"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  # Gradle laedt sonst bei jedem Aufruf einen Daemon, der nach dem Job
+  # ohnehin stirbt.
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+.android:
+  image: eclipse-temurin:17-jdk
+  cache:
+    key: android-sdk-34
+    paths:
+      - .android-sdk/
+      - .gradle/caches/
+      - .gradle/wrapper/
+    when: always
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq curl unzip
+    - |
+      if [ ! -d "$ANDROID_SDK_ROOT/platforms/android-34" ]; then
+        echo "Android-SDK wird eingerichtet"
+        mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+        curl -sSL -o werkzeuge.zip \
+          https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q werkzeuge.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+        mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" \
+           "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+        rm -f werkzeuge.zip
+        # Die Lizenzen muessen bestaetigt sein, sonst bricht jeder Aufruf
+        # mit einer Rueckfrage ab, die in der CI niemand beantwortet.
+        yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+          --licenses > /dev/null 2>&1 || true
+        "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+          "platform-tools" "platforms;android-34" "build-tools;34.0.0" \
+          > /dev/null
+      else
+        echo "Android-SDK aus dem Cache"
+      fi
+    - chmod +x gradlew
+
+# Die eigentliche Absicherung: DigestAuth, FFT, Hochpass, PacketQueue und
+# RtpSender haben Tests -- das ist genau der Teil, der still falsch rechnen
+# kann, ohne dass die App abstuerzt.
+unit-tests:
+  extends: .android
+  stage: test
+  timeout: 40m
+  script:
+    - ./gradlew testDebugUnitTest --console=plain
+  artifacts:
+    when: always
+    reports:
+      junit: app/build/test-results/testDebugUnitTest/TEST-*.xml
+    paths:
+      - app/build/reports/tests/
+    expire_in: 1 week
+
+# Dass die Tests durchlaufen, heisst noch nicht, dass sich eine APK bauen
+# laesst. Die Release-Variante nimmt die Debug-Signatur (siehe
+# app/build.gradle.kts) und ist damit ohne Keystore baubar.
+apk:
+  extends: .android
+  stage: bauen
+  timeout: 40m
+  script:
+    - ./gradlew assembleRelease --console=plain
+    - ls -la app/build/outputs/apk/release/
+  artifacts:
+    paths:
+      - app/build/outputs/apk/release/*.apk
+    expire_in: 4 weeks
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
