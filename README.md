@@ -132,9 +132,12 @@ Position, synchron aufgenommen:
 
 | Gerät | Android | Anmerkung |
 | --- | --- | --- |
-| Huawei P smart+ 2019 | 9 | |
+| Huawei P smart+ 2019 | 9 (unbestätigt) | Auslieferungsversion; ob ein Update auf 10 durchkam, ist noch nicht nachgesehen |
 | HMD Global Nokia 2.3 | 11 | |
 | Samsung Galaxy S7 | 10 | Custom-ROM auf S9-Firmware, zweiter Akku — genau der Fall, für den die App gedacht ist |
+
+Die tatsächliche Version steht im Diagnosebericht und in der Kopfzeile der
+Weboberfläche — geraten wird hier nichts, was man ablesen kann.
 
 Die Ergebnisse (Neustart-Zähler, Übersteuerung, welche Aufnahmequelle das untere
 Mikrofon trifft) kommen hier hinein, sobald sie da sind. Ein Custom-ROM im
