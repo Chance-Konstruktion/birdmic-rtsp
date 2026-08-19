@@ -120,7 +120,7 @@ Aufnahme, Autostart nach Neustart.
 
 | | |
 | --- | --- |
-| Android | 8.0 (API 26) bis 14, erprobt auf 9, 10 und 11 |
+| Android | 8.0 (API 26) bis 14, erprobt auf 10 und 11 |
 | Netzwerk | WLAN, dasselbe Netz wie der Pi |
 | Strom | Dauerhaft am Ladekabel |
 | Empfänger | BirdNET-Pi, BirdNET-Go oder irgendein RTSP-Client |
@@ -132,12 +132,16 @@ Position, synchron aufgenommen:
 
 | Gerät | Android | Anmerkung |
 | --- | --- | --- |
-| Huawei P smart+ 2019 | 9 (unbestätigt) | Auslieferungsversion; ob ein Update auf 10 durchkam, ist noch nicht nachgesehen |
+| HUAWEI POT-LX1 | 10 | |
 | HMD Global Nokia 2.3 | 11 | |
 | Samsung Galaxy S7 | 10 | Custom-ROM auf S9-Firmware, zweiter Akku — genau der Fall, für den die App gedacht ist |
 
-Die tatsächliche Version steht im Diagnosebericht und in der Kopfzeile der
-Weboberfläche — geraten wird hier nichts, was man ablesen kann.
+Alle drei Angaben sind aus der App abgelesen (Diagnosebericht bzw. Kopfzeile der
+Weboberfläche), nicht aus Datenblättern abgeleitet.
+
+Damit deckt das Testfeld **zwei** Android-Versionen ab, nicht drei — dafür ist
+die 10 doppelt vertreten, einmal ab Werk und einmal als Custom-ROM auf
+Neun-Jahre-alter Hardware.
 
 Die Ergebnisse (Neustart-Zähler, Übersteuerung, welche Aufnahmequelle das untere
 Mikrofon trifft) kommen hier hinein, sobald sie da sind. Ein Custom-ROM im
@@ -738,11 +742,11 @@ gehört der Zugangsschutz gesetzt. Der Verkehr ist unverschlüsseltes HTTP.
   Teile sind durch 46 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
   Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
   liegt sie als Rückfallebene bei.
-- **Android 8.0 und 8.1 sind ungetestet.** `minSdk` ist 26, und die
+- **Android 8 und 9 sind ungetestet.** `minSdk` ist 26, und die
   Fallunterscheidungen für diese Versionen sind vorhanden (Lint erzwingt sie),
-  aber gelaufen ist die App bislang nur auf 9, 10 und 11. Wer ein echtes
-  Android-8-Gerät hat: Rückmeldung willkommen, besonders zur Anzeige „Aktives
-  Mikrofon", die dort systembedingt leer bleibt.
+  aber gelaufen ist die App bislang nur auf 10 und 11. Wer ein Gerät mit 8 oder
+  9 hat: Rückmeldung willkommen. Auf 8.x bleibt die Anzeige „Aktives Mikrofon"
+  systembedingt leer — `getActiveMicrophones()` gibt es erst ab 9.
 - **Android 12 bis 14 sind ebenfalls ungetestet.** Der Autostart ab 14 ist
   behandelt und meldet sich, statt still auszufallen — aber auf einem Gerät
   dieser Generation ist die App noch nicht gelaufen.
