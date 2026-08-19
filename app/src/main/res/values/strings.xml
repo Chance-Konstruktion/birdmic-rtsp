@@ -32,6 +32,10 @@
     <string name="mdns_label">Im Netz als Name anmelden (mDNS)</string>
     <string name="mdns_hint">Macht den Stream im Netz auffindbar. Auf dem Pi mit „avahi-browse -rt _rtsp._tcp" anzeigen – das liefert die aktuelle IP, auch wenn sie sich geändert hat. Ob zusätzlich ein Name wie birdmic.local auflöst, entscheidet das Telefon; verlass dich nicht darauf, sondern vergib lieber eine feste IP im Router.</string>
     <string name="udp_timeout_label">UDP-Timeout in Sekunden (0 = aus)</string>
+    <string name="max_clients_label">Maximale Empfänger insgesamt (0 = unbegrenzt)</string>
+    <string name="max_per_ip_label">Maximale Empfänger je Adresse (0 = unbegrenzt)</string>
+    <string name="max_clients_hint">Schützt vor Empfängern, die sich bei einem Verbindungsfehler vervielfachen. Jeder Empfänger kostet die volle Bandbreite – 13 gleichzeitig sind rund 10 Mbit/s. Bei Überschreitung wird der älteste getrennt, nicht der neue abgewiesen.</string>
+    <string name="bad_limit">Wert muss zwischen 0 und 32 liegen</string>
     <string name="auth_hint">Beide Felder leer lassen = kein Schutz. Digest-Authentifizierung überträgt nur einen Hash, aber der Ton bleibt unverschlüsselt.</string>
     <string name="auth_user_hint">Benutzername (optional)</string>
     <string name="auth_password_hint">Passwort (optional)</string>

@@ -2,6 +2,30 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## 2.3 — Obergrenze für Empfänger
+
+### Neu
+
+- **Maximale Empfängerzahl**, insgesamt (Standard 4) und je Absenderadresse
+  (Standard 2). 0 schaltet die jeweilige Grenze ab.
+
+Aus einem echten Vorfall: Nachdem der Streamer kurz ohne WLAN war, hatte
+BirdNET-Pi beim Wiederverbinden **13 ffmpeg-Prozesse** gestartet, ohne die alten
+zu beenden. Alle 13 zogen gleichzeitig denselben Stream — rund 10 Mbit/s vom
+Telefon, 100 % Last auf dem Pi. Erst ein Neustart von BirdNET-Pi hat es behoben.
+
+Die eigentliche Ursache liegt auf der Empfängerseite. Der Stream sollte sich
+davon aber nicht mitreißen lassen, deshalb jetzt die Obergrenze.
+
+**Bei Überschreitung wird die älteste Session getrennt, nicht die neue
+abgewiesen.** Andersherum würde eine hängende Verbindung den Platz dauerhaft
+belegen und der Stream nie zurückkommen. Der UDP-Timeout hilft hier übrigens
+nicht: die 13 Sessions waren nicht verwaist, sondern quicklebendig.
+
+Dies sind die einzigen Voreinstellungen, die nicht auf „aus" stehen — der
+Fehlerfall ist beobachtet, und unbegrenzt war genau die Einstellung, die ihn
+möglich gemacht hat.
+
 ## 2.2 — Dunkles Thema
 
 Inhaltlich 2.1 plus eine Oberflächenoption; die Härtungsarbeit aus 2.1 ist

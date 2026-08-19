@@ -102,6 +102,8 @@ class RtspService : Service() {
             audio = engine,
             auth = credentials,
             udpTimeoutSeconds = prefs.udpTimeoutSeconds,
+            maxClients = prefs.maxClients,
+            maxClientsPerIp = prefs.maxClientsPerIp,
             onEvent = emit,
         )
 

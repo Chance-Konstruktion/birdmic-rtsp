@@ -76,6 +76,22 @@ class Prefs(context: Context) {
         get() = sp.getString("mdns_name", "BirdMic") ?: "BirdMic"
         set(v) = sp.edit().putString("mdns_name", v.trim().ifBlank { "BirdMic" }).apply()
 
+    /**
+     * Obergrenze fuer gleichzeitige Empfaenger, 0 = unbegrenzt.
+     *
+     * Nicht theoretisch: ein Reconnect-Fehler auf der Empfaengerseite kann
+     * dutzende Prozesse starten, die alle gleichzeitig denselben Stream ziehen.
+     * Jeder kostet volle Bandbreite -- 13 Empfaenger sind bereits 10 Mbit/s.
+     */
+    var maxClients: Int
+        get() = sp.getInt("max_clients", 4)
+        set(v) = sp.edit().putInt("max_clients", v.coerceAtLeast(0)).apply()
+
+    /** Obergrenze je Absenderadresse, 0 = unbegrenzt. */
+    var maxClientsPerIp: Int
+        get() = sp.getInt("max_clients_per_ip", 2)
+        set(v) = sp.edit().putInt("max_clients_per_ip", v.coerceAtLeast(0)).apply()
+
     /** Sekunden ohne Lebenszeichen, nach denen eine UDP-Session verworfen wird. 0 = nie. */
     var udpTimeoutSeconds: Int
         get() = sp.getInt("udp_timeout", 0)

@@ -25,6 +25,10 @@ class RtspServer(
     private val auth: DigestAuth? = null,
     /** Sekunden ohne Lebenszeichen, nach denen eine UDP-Session verworfen wird. 0 = nie. */
     private val udpTimeoutSeconds: Int = 0,
+    /** Obergrenze gleichzeitiger Empfaenger insgesamt, 0 = unbegrenzt. */
+    private val maxClients: Int = 0,
+    /** Obergrenze je Absenderadresse, 0 = unbegrenzt. */
+    private val maxClientsPerIp: Int = 0,
     private val onEvent: ((EventLog.Kind, String) -> Unit)? = null,
 ) {
     private var serverSocket: ServerSocket? = null
@@ -141,6 +145,9 @@ class RtspServer(
         // Boolean wuerde den Client-Zaehler doppelt herunterzaehlen.
         private val playingFlag = java.util.concurrent.atomic.AtomicBoolean(false)
         private val isPlaying: Boolean get() = playingFlag.get()
+
+        /** Fuer die Frage, welche Session bei Ueberschreitung des Limits weichen muss. */
+        val startedAt: Long = System.currentTimeMillis()
 
         @Volatile private var lastRequestAt = System.currentTimeMillis()
 
@@ -391,6 +398,7 @@ class RtspServer(
                 ),
             )
             if (playingFlag.compareAndSet(false, true)) {
+                enforceLimits()
                 playing.incrementAndGet()
                 senderThread = Thread(::sendLoop, "birdmic-send-${address()}").apply { start() }
                 audio.addSink(this)
@@ -399,6 +407,39 @@ class RtspServer(
                     EventLog.Kind.CLIENT_IN,
                     "Empfänger ${address()} verbunden (${if (usesUdp) "UDP" else "TCP"})",
                 )
+            }
+        }
+
+        /**
+         * Setzt die Obergrenzen durch, sobald ein neuer Empfaenger zu spielen
+         * beginnt. Der Neue gewinnt, die aeltesten weichen.
+         *
+         * Bewusst so herum: laeuft auf der Gegenseite ein Reconnect-Fehler und
+         * startet dutzende Prozesse, sind die alten die haengenden. Wuerde man
+         * stattdessen den Neuen abweisen, blockierte eine tote Session den
+         * Platz dauerhaft und der Stream kaeme nie zurueck.
+         */
+        private fun enforceLimits() {
+            if (maxClientsPerIp > 0) {
+                val sameIp = connections.filter { it !== this && it.isPlaying && it.address() == address() }
+                dropOldest(sameIp, maxClientsPerIp - 1, "je Adresse")
+            }
+            if (maxClients > 0) {
+                val others = connections.filter { it !== this && it.isPlaying }
+                dropOldest(others, maxClients - 1, "insgesamt")
+            }
+        }
+
+        private fun dropOldest(candidates: List<Connection>, keep: Int, reason: String) {
+            if (candidates.size <= keep) return
+            val doomed = candidates.sortedBy { it.startedAt }.take(candidates.size - keep)
+            for (connection in doomed) {
+                Log.w(TAG, "Limit $reason erreicht, trenne ${connection.address()}")
+                onEvent?.invoke(
+                    EventLog.Kind.WARNING,
+                    "Grenze $reason erreicht – älteren Empfänger ${connection.address()} getrennt",
+                )
+                connection.close()
             }
         }
 

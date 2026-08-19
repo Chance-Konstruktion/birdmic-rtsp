@@ -55,6 +55,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mdnsBox: CheckBox
     private lateinit var mdnsNameField: EditText
     private lateinit var udpTimeoutField: EditText
+    private lateinit var maxClientsField: EditText
+    private lateinit var maxPerIpField: EditText
     private lateinit var authUserField: EditText
     private lateinit var authPasswordField: EditText
     private lateinit var autostartBox: CheckBox
@@ -153,6 +155,8 @@ class MainActivity : AppCompatActivity() {
         mdnsBox = findViewById(R.id.mdns)
         mdnsNameField = findViewById(R.id.mdns_name)
         udpTimeoutField = findViewById(R.id.udp_timeout)
+        maxClientsField = findViewById(R.id.max_clients)
+        maxPerIpField = findViewById(R.id.max_per_ip)
         authUserField = findViewById(R.id.auth_user)
         authPasswordField = findViewById(R.id.auth_password)
         autostartBox = findViewById(R.id.autostart)
@@ -167,6 +171,8 @@ class MainActivity : AppCompatActivity() {
         mdnsBox.isChecked = prefs.mdnsEnabled
         mdnsNameField.setText(prefs.mdnsName)
         udpTimeoutField.setText(prefs.udpTimeoutSeconds.toString())
+        maxClientsField.setText(prefs.maxClients.toString())
+        maxPerIpField.setText(prefs.maxClientsPerIp.toString())
         authUserField.setText(prefs.authUser)
         authPasswordField.setText(prefs.authPassword)
         autostartBox.isChecked = prefs.autostart
@@ -284,6 +290,16 @@ class MainActivity : AppCompatActivity() {
             batteryWarnField.error = getString(R.string.bad_temp)
             return false
         }
+        val maxClients = maxClientsField.text.toString().ifBlank { "0" }.toIntOrNull()
+        if (maxClients == null || maxClients !in 0..32) {
+            maxClientsField.error = getString(R.string.bad_limit)
+            return false
+        }
+        val maxPerIp = maxPerIpField.text.toString().ifBlank { "0" }.toIntOrNull()
+        if (maxPerIp == null || maxPerIp !in 0..32) {
+            maxPerIpField.error = getString(R.string.bad_limit)
+            return false
+        }
         val user = authUserField.text.toString().trim()
         val password = authPasswordField.text.toString()
         if (user.isNotBlank() != password.isNotBlank()) {
@@ -294,6 +310,8 @@ class MainActivity : AppCompatActivity() {
         prefs.port = port
         prefs.gain = gain
         prefs.udpTimeoutSeconds = timeout
+        prefs.maxClients = maxClients
+        prefs.maxClientsPerIp = maxPerIp
         prefs.batteryWarnCelsius = warnTemp
         prefs.authUser = user
         prefs.authPassword = password
@@ -471,7 +489,7 @@ class MainActivity : AppCompatActivity() {
         val views = listOf<android.view.View>(
             sourceSpinner, deviceSpinner, sampleRateSpinner, channelSpinner, highPassSpinner,
             gainField, portField, pathField, mdnsBox, mdnsNameField, udpTimeoutField,
-            authUserField, authPasswordField, batteryWarnField,
+            maxClientsField, maxPerIpField, authUserField, authPasswordField, batteryWarnField,
         )
         for (view in views) view.isEnabled = enabled
     }

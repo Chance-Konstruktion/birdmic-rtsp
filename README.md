@@ -126,7 +126,7 @@ Aufnahme, Autostart nach Neustart.
 
 ### Fertige APK
 
-`BirdMic-2.2.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
+`BirdMic-2.3.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
 Debug-Schlüssel (APK Signature Scheme v2).
 
 > `BirdMic-1.2.apk` liegt als **Rückfallebene** daneben. Version 2.0 bringt viele
@@ -141,7 +141,7 @@ Debug-Schlüssel (APK Signature Scheme v2).
 Oder per ADB:
 
 ```bash
-adb install -r BirdMic-2.2.apk
+adb install -r BirdMic-2.3.apk
 ```
 
 > Debug-signiert reicht für ein Gerät im eigenen WLAN. Für den Play Store
@@ -229,6 +229,8 @@ umstellen, neu starten.**
 | **Hochpassfilter** | aus | 80–300 Hz, 24 dB/Oktave. Siehe unten. |
 | **mDNS** | aus | Meldet den Stream als `_rtsp._tcp` im Netz an. |
 | **UDP-Timeout** | 0 (aus) | Sekunden ohne Lebenszeichen, nach denen eine UDP-Session verworfen wird. Betrifft **nur** UDP; TCP-Verbindungen werden über den Verbindungsabbruch erkannt. |
+| **Max. Empfänger** | 4 | Obergrenze gleichzeitiger Empfänger, 0 = unbegrenzt. Bei Überschreitung weicht der älteste. |
+| **Max. je Adresse** | 2 | Dasselbe pro Absender-IP. Schützt vor Empfängern, die sich bei einem Verbindungsfehler vervielfachen. |
 | **Zugangsschutz** | aus | Benutzername + Passwort für Digest-Auth. Beide leer = kein Schutz. |
 | **Autostart** | ein | Startet nach Neustart wieder — aber nur, wenn der Stream beim Ausschalten lief. |
 | **Akkuwarnung** | 40 °C | Warnschwelle der Akkutemperatur, 0 = aus. |
