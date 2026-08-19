@@ -125,6 +125,22 @@ Aufnahme, Autostart nach Neustart.
 | Strom | Dauerhaft am Ladekabel |
 | Empfänger | BirdNET-Pi, BirdNET-Go oder irgendein RTSP-Client |
 
+### Geräte im Test
+
+Stand 19.08.2026 läuft ein Vergleichstest mit drei Geräten an derselben
+Position, synchron aufgenommen:
+
+| Gerät | Android | Anmerkung |
+| --- | --- | --- |
+| Huawei P smart+ 2019 | 9 | |
+| HMD Global Nokia 2.3 | 11 | |
+| Samsung Galaxy S7 | 10 | Custom-ROM auf S9-Firmware, zweiter Akku — genau der Fall, für den die App gedacht ist |
+
+Die Ergebnisse (Neustart-Zähler, Übersteuerung, welche Aufnahmequelle das untere
+Mikrofon trifft) kommen hier hinein, sobald sie da sind. Ein Custom-ROM im
+Testfeld ist ausdrücklich erwünscht: Wenn die App dort sauber läuft, sagt das
+mehr über ihre Robustheit als drei Werksgeräte.
+
 ### Warum nicht älter als Android 8?
 
 Die Untergrenze ist keine Bequemlichkeit, sondern der Punkt, ab dem die App
@@ -721,9 +737,12 @@ gehört der Zugangsschutz gesetzt. Der Verkehr ist unverschlüsseltes HTTP.
   liegt sie als Rückfallebene bei.
 - **Android 8.0 und 8.1 sind ungetestet.** `minSdk` ist 26, und die
   Fallunterscheidungen für diese Versionen sind vorhanden (Lint erzwingt sie),
-  aber bislang lief die App nur auf API 28 und neuer. Wer ein echtes Android-8-
-  Gerät hat: Rückmeldung willkommen, besonders zur Anzeige „Aktives Mikrofon",
-  die dort systembedingt leer bleibt.
+  aber gelaufen ist die App bislang nur auf 9, 10 und 11. Wer ein echtes
+  Android-8-Gerät hat: Rückmeldung willkommen, besonders zur Anzeige „Aktives
+  Mikrofon", die dort systembedingt leer bleibt.
+- **Android 12 bis 14 sind ebenfalls ungetestet.** Der Autostart ab 14 ist
+  behandelt und meldet sich, statt still auszufallen — aber auf einem Gerät
+  dieser Generation ist die App noch nicht gelaufen.
 - **Kein Session-Zustandsautomat.** Ungewöhnliche Methodenfolgen (`PLAY` vor
   `SETUP`, `PAUSE` ohne `PLAY`) werden abgefangen, aber nicht systematisch über
   einen expliziten Zustand geprüft.
