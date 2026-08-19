@@ -92,6 +92,21 @@ class Prefs(context: Context) {
         get() = sp.getInt("max_clients_per_ip", 2)
         set(v) = sp.edit().putInt("max_clients_per_ip", v.coerceAtLeast(0)).apply()
 
+    /**
+     * Nur-Lese-Weboberflaeche fuer die Ferndiagnose. Standardmaessig aus.
+     *
+     * Aus: es gibt keinen zweiten offenen Port. An: jeder im WLAN sieht Status,
+     * Logbuch und Spektrum -- solange kein Zugangsschutz gesetzt ist. Deshalb
+     * bleibt die Voreinstellung "aus", auch wenn der Server nichts aendern kann.
+     */
+    var webEnabled: Boolean
+        get() = sp.getBoolean("web", false)
+        set(v) = sp.edit().putBoolean("web", v).apply()
+
+    var webPort: Int
+        get() = sp.getInt("web_port", WebServer.DEFAULT_PORT)
+        set(v) = sp.edit().putInt("web_port", v).apply()
+
     /** Sekunden ohne Lebenszeichen, nach denen eine UDP-Session verworfen wird. 0 = nie. */
     var udpTimeoutSeconds: Int
         get() = sp.getInt("udp_timeout", 0)

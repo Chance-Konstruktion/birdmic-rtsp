@@ -31,6 +31,7 @@ Aufnahme, Autostart nach Neustart.
 - [Technische Details](#technische-details)
 - [Selbst bauen](#selbst-bauen)
 - [Zugangsschutz, mDNS, Logbuch](#zugangsschutz-mdns-logbuch)
+- [Weboberfläche](#weboberfläche)
 - [Bekannte Grenzen](#bekannte-grenzen)
 - [Aufbau des Codes](#aufbau-des-codes)
 - [Ideen für später](#ideen-für-später)
@@ -106,6 +107,10 @@ Aufnahme, Autostart nach Neustart.
 - **Live-Spektrogramm** zum Prüfen der Aufstellung, ohne zum Pi zu wechseln
 - **Anzahl und Adressen der verbundenen Empfänger** samt Transportart
 - **Laufzeit, übertragene Datenmenge, Akkuzustand**
+- **Diagnosebericht als Textdatei sichern** — Gerät, Einstellungen, Zustand und
+  vollständiges Logbuch in einer Datei, die man verschicken kann
+- **Optionale Weboberfläche** — Status, Logbuch und Spektrogramm im Browser
+  eines anderen Geräts, ohne das Telefon anzufassen. Ab Werk aus.
 - RTSP-Adresse anzeigen und **in die Zwischenablage kopieren**
 - Dauerhafte **Benachrichtigung** mit Empfängerzahl, Warnungen und Stopp-Knopf
 
@@ -115,10 +120,40 @@ Aufnahme, Autostart nach Neustart.
 
 | | |
 | --- | --- |
-| Android | 8.0 (API 26) oder neuer |
+| Android | 8.0 (API 26) bis 14, erprobt auf 9, 10 und 11 |
 | Netzwerk | WLAN, dasselbe Netz wie der Pi |
 | Strom | Dauerhaft am Ladekabel |
 | Empfänger | BirdNET-Pi, BirdNET-Go oder irgendein RTSP-Client |
+
+### Warum nicht älter als Android 8?
+
+Die Untergrenze ist keine Bequemlichkeit, sondern der Punkt, ab dem die App
+überhaupt das tun darf, was sie tut:
+
+| Ab | Was erst dort existiert |
+| --- | --- |
+| 5.0 (21) | `AudioRecord.setPreferredDevice` — ohne das keine Geräteauswahl |
+| 6.0 (23) | Laufzeitberechtigungen; darunter gibt es den Dialog gar nicht |
+| 8.0 (26) | **Benachrichtigungskanäle und `startForegroundService`** |
+| 9.0 (28) | `getActiveMicrophones()`, `AudioDeviceInfo.getAddress()` |
+
+Der entscheidende Sprung ist 8.0. Genau dort hat Android den Hintergrundbetrieb
+zugedreht: Ohne Vordergrunddienst mit Kanal wird eine App nach Minuten
+eingefroren — und ein Mikrofonstream, der nach zehn Minuten verstummt, ist
+nutzlos. Auf Android 4.3 wäre der Code zwar lauffähig zu bekommen, aber jede
+Zeile mit Vordergrunddienst, Berechtigungsabfrage und Geräteauswahl bräuchte
+einen zweiten Weg, den niemand testen kann. Der Aufwand steht in keinem
+Verhältnis: Geräte mit 4.3 sind von 2013, ihr WLAN-Chip schafft 24/7 keinen
+Dauerstream, und ihr Akku ist zwölf Jahre alt.
+
+**Nach oben** ist es umgekehrt unkritisch: `targetSdk 34` (Android 14) ist die
+strengste Stufe, gegen die die App gebaut ist, und die eine echte Einschränkung
+dort — dass ein Mikrofon-Vordergrunddienst nicht mehr aus `BOOT_COMPLETED`
+starten darf — ist behandelt (siehe [Autostart und Android 14](#autostart-und-android-14)).
+Auf Android 15 und 16 läuft eine App mit `targetSdk 34` weiter; sie bekommt nur
+die neuen Regeln noch nicht aufgezwungen. Wenn dort einmal getestet wird, ist
+das Anheben des `targetSdk` eine Zeile plus ein Durchgang durch die
+Verhaltensänderungen — kein Umbau.
 
 ---
 
@@ -126,7 +161,7 @@ Aufnahme, Autostart nach Neustart.
 
 ### Fertige APK
 
-`BirdMic-2.3.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
+`BirdMic-2.4.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
 Debug-Schlüssel (APK Signature Scheme v2).
 
 > `BirdMic-1.2.apk` liegt als **Rückfallebene** daneben. Version 2.0 bringt viele
@@ -141,7 +176,7 @@ Debug-Schlüssel (APK Signature Scheme v2).
 Oder per ADB:
 
 ```bash
-adb install -r BirdMic-2.3.apk
+adb install -r BirdMic-2.4.apk
 ```
 
 > Debug-signiert reicht für ein Gerät im eigenen WLAN. Für den Play Store
@@ -228,6 +263,8 @@ umstellen, neu starten.**
 | **Abtastrate** | 48000 Hz | 48, 44,1, 32, 22,05 oder 16 kHz. **48 kHz lassen** — darunter fehlen die oberen Frequenzen, an denen BirdNET Arten unterscheidet. Nur ändern, wenn das Gerät 48 kHz nicht kann. |
 | **Hochpassfilter** | aus | 80–300 Hz, 24 dB/Oktave. Siehe unten. |
 | **mDNS** | aus | Meldet den Stream als `_rtsp._tcp` im Netz an. |
+| **Weboberfläche** | aus | Nur-Lese-Ansicht im Browser. Siehe unten. |
+| **Port der Weboberfläche** | 8080 | Muss ein anderer sein als der RTSP-Port. |
 | **UDP-Timeout** | 0 (aus) | Sekunden ohne Lebenszeichen, nach denen eine UDP-Session verworfen wird. Betrifft **nur** UDP; TCP-Verbindungen werden über den Verbindungsabbruch erkannt. |
 | **Max. Empfänger** | 4 | Obergrenze gleichzeitiger Empfänger, 0 = unbegrenzt. Bei Überschreitung weicht der älteste. |
 | **Max. je Adresse** | 2 | Dasselbe pro Absender-IP. Schützt vor Empfängern, die sich bei einem Verbindungsfehler vervielfachen. |
@@ -418,6 +455,9 @@ Im WLAN unkritisch, aber nichts für eine Mobilfunkverbindung.
 | Unten im Spektrogramm ein durchgehender heller Balken | Rumpeln oder Wind. Hochpassfilter auf 150 Hz stellen. |
 | Client bekommt 401 Unauthorized | Zugangsschutz ist aktiv. Zugangsdaten in die URL: `rtsp://benutzer:passwort@ip:8554/audio.wav` |
 | Kachel reagiert nicht | Ohne Mikrofonberechtigung öffnet sie nur die App. Einmal in der App starten. |
+| Weboberfläche nicht erreichbar | Läuft nur, solange der Stream läuft. Sonst: Port belegt — das steht dann im Logbuch. |
+| Weboberfläche zeigt alte Werte | Seite neu laden. Die Antworten sind mit `Cache-Control: no-store` versehen, ein Zwischenspeicher davor sollte nicht greifen. |
+| Spektrogramm im Browser steht still | Der Tab ist im Hintergrund — dort pausiert es absichtlich. |
 
 ### Logs lesen
 
@@ -514,7 +554,7 @@ sdk.dir=/pfad/zum/android/sdk
 
 Abhängigkeiten: nur `androidx.core:core-ktx` und `androidx.appcompat`. Kein
 Netzwerk-, Medien- oder DSP-Framework von Dritten — RTSP, RTP, Hochpassfilter
-und FFT sind von Hand geschrieben. Insgesamt rund 2500 Zeilen Kotlin in 16
+und FFT sind von Hand geschrieben. Insgesamt rund 4000 Zeilen Kotlin in 21
 Dateien.
 
 ### Tests und statische Prüfung
@@ -523,7 +563,7 @@ Dateien.
 ./gradlew testReleaseUnitTest lintRelease
 ```
 
-**32 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
+**46 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
 
 | Testklasse | Prüft |
 | --- | --- |
@@ -532,6 +572,7 @@ Dateien.
 | `RtpSenderTest` | RTP-Kopf nach RFC 3550, Sequenz- und Zeitstempelfortschritt, SSRC, Überlauf bei 65535 |
 | `DigestAuthTest` | Gültige und ungültige Anmeldung, Methodenbindung, fremde Nonce, Zufälligkeit |
 | `PacketQueueTest` | Reihenfolge, Verwerfen des ältesten Pakets, garantiert blockierungsfreies `offer` |
+| `WebServerTest` | Läuft gegen echte Sockets: Routen, 404/405, HEAD ohne Rumpf, Digest-Ablauf, Überlängen, Port wirklich freigegeben |
 
 Lint muss fehlerfrei durchlaufen, sonst bricht der Build ab. Es fängt vor allem
 API-Level-Fehler ab, die der Kotlin-Compiler nicht sieht — ein Aufruf, den es
@@ -586,10 +627,96 @@ lässt sich ableiten, welcher Mechanismus zuschlägt. Immer zur selben Uhrzeit
 deutet auf eine geplante Systemwartung, nach Stunden Inaktivität auf Doze,
 unregelmäßig auf eine andere App, die das Mikrofon greift.
 
+### Logbuch exportieren
+
+**Logbuch als Datei sichern** schreibt einen vollständigen Diagnosebericht über
+den Systemdialog dorthin, wo man ihn braucht — Downloads, Drive, USB-Stick.
+Keine Speicherberechtigung nötig.
+
+Der Bericht enthält mehr als die Anzeige in der App:
+
+```
+BirdMic 2.4 (Build 8)
+Bericht vom 19.08.2026 21:47:12
+
+--- Gerät ----------------------------------------------
+Modell:      samsung SM-G930F
+Produkt:     samsung/heroltexx (herolte)
+Android:     10 (API 29)
+Build:       QQ3A.200805.001
+
+--- Einstellungen --------------------------------------
+Port:        8554, Pfad /audio.wav
+Abtastrate:  48000 Hz, mono
+Quelle:      Unbearbeitet (bestes Ergebnis, ab Android 7)
+...
+
+--- Zustand --------------------------------------------
+Läuft seit:  2d 07:14:52
+Empfänger:   1
+             192.168.1.50 (TCP)
+Neustarts:   0
+Übersteuert: 0 Samples
+
+--- Logbuch (100 Einträge, älteste zuerst) -------------
+17.08.2026 14:32:01  ▶ Stream gestartet auf rtsp://…
+```
+
+Genau die Angaben, nach denen man sonst dreimal nachfragt: welches Gerät,
+welche Quelle, seit wann, wie oft neu gestartet. Dieselbe Datei liefert die
+Weboberfläche unter `/log.txt`.
+
+---
+
+## Weboberfläche
+
+Optional, **ab Werk aus**. Eingeschaltet öffnet sie einen zweiten Port
+(Standard 8080) und zeigt im Browser eines beliebigen Geräts im selben Netz:
+
+```
+http://192.168.1.42:8080/
+```
+
+- Status, Adresse, Pegel und Spitzenpegel
+- **Live-Spektrogramm**, das im Browser weiterläuft
+- Aufnahmequelle, aktives Mikrofon, Laufzeit, Datenmenge, Neustarts,
+  übersteuerte Samples, Akku
+- Liste der verbundenen Empfänger
+- Die letzten 30 Logbucheinträge und ein Verweis auf `/log.txt`
+
+Praktisch, wenn das Telefon am Fenster hängt, im Gartenhaus steht oder man den
+Standort einregelt, während man am Rechner sitzt und das Spektrogramm beobachtet.
+
+### Was sie bewusst nicht kann
+
+**Nur lesen.** Der Server nimmt ausschließlich `GET` und `HEAD` an; es gibt
+keine Route, die etwas ändert, startet oder stoppt. Wer die Einstellungen
+ändern will, muss das Telefon in die Hand nehmen — das ist Absicht, nicht
+Unfertigkeit.
+
+| | |
+| --- | --- |
+| Routen | fest verdrahtet, keine Datei vom Datenträger — Pfad-Angriffe gibt es hier nicht |
+| Verbindungen | höchstens 4 gleichzeitig, 5 s Lesezeitlimit, kein Keep-Alive |
+| Seite | eine einzige HTML-Datei unter 6 kB, einkompiliert, ohne Nachladen — läuft ohne Internetzugang |
+| Zugangsschutz | dieselben Zugangsdaten wie RTSP; der Browser fragt sie ab |
+| Last | zwei Abrufe pro Sekunde je offenem Browser; im Hintergrundtab pausiert das Spektrogramm von selbst |
+
+Fällt der Webserver aus — belegter Port etwa —, läuft der Ton unverändert
+weiter; es gibt nur eine Zeile im Logbuch. Die beiden teilen sich die
+Datenquelle, nicht den Lebenslauf.
+
+### Sicherheit
+
+Ohne Zugangsschutz sieht **jeder im selben WLAN** Status, Logbuch und
+Spektrogramm. Nichts davon ist geheim, und mithören kann darüber niemand — die
+Seite überträgt keinen Ton. Trotzdem: ab Werk aus, und in einem geteilten Netz
+gehört der Zugangsschutz gesetzt. Der Verkehr ist unverschlüsseltes HTTP.
+
 ## Bekannte Grenzen
 
-- **Version 2.1 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
-  Teile sind durch 32 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
+- **Version 2.4 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
+  Teile sind durch 46 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
   Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
   liegt sie als Rückfallebene bei.
 - **Android 8.0 und 8.1 sind ungetestet.** `minSdk` ist 26, und die

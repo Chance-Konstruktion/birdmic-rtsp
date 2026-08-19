@@ -9,6 +9,9 @@
     <string name="battery">Akku-Optimierung ausschalten</string>
     <string name="battery_already">Akku-Optimierung ist bereits aus – passt so.</string>
     <string name="clear_log">Logbuch leeren</string>
+    <string name="export_log">Logbuch als Datei sichern</string>
+    <string name="export_done">Bericht gesichert (%1$d kB)</string>
+    <string name="export_failed">Speichern fehlgeschlagen: %1$s</string>
 
     <!-- Abschnitte -->
     <string name="section_audio">Audio</string>
@@ -31,6 +34,12 @@
     <string name="path_label">Pfad</string>
     <string name="mdns_label">Im Netz als Name anmelden (mDNS)</string>
     <string name="mdns_hint">Macht den Stream im Netz auffindbar. Auf dem Pi mit „avahi-browse -rt _rtsp._tcp" anzeigen – das liefert die aktuelle IP, auch wenn sie sich geändert hat. Ob zusätzlich ein Name wie birdmic.local auflöst, entscheidet das Telefon; verlass dich nicht darauf, sondern vergib lieber eine feste IP im Router.</string>
+    <string name="web_label">Weboberfläche im Browser (nur lesen)</string>
+    <string name="web_port_label">Port der Weboberfläche</string>
+    <string name="web_hint">Zeigt Status, Logbuch und Spektrogramm im Browser, ohne dass man das Telefon in die Hand nehmen muss. Der Server kann nichts ändern und nichts starten – er liest nur vor. Ohne Zugangsschutz sieht ihn jeder im selben WLAN, deshalb ist er ab Werk aus.</string>
+    <string name="bad_web_port_same">Webserver und RTSP können nicht denselben Port benutzen</string>
+    <string name="detail_web">\nWeboberfläche: %1$s</string>
+
     <string name="udp_timeout_label">UDP-Timeout in Sekunden (0 = aus)</string>
     <string name="max_clients_label">Maximale Empfänger insgesamt (0 = unbegrenzt)</string>
     <string name="max_per_ip_label">Maximale Empfänger je Adresse (0 = unbegrenzt)</string>

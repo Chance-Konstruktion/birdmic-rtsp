@@ -259,6 +259,34 @@
             android:textSize="12sp"
             android:textStyle="italic" />
 
+        <CheckBox
+            android:id="@+id/web"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/web_label" />
+
+        <TextView
+            style="@style/FieldLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/web_port_label" />
+
+        <EditText
+            android:id="@+id/web_port"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="8080"
+            android:importantForAutofill="no"
+            android:inputType="number" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/web_hint"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
         <TextView
             style="@style/FieldLabel"
             android:layout_width="match_parent"
@@ -405,6 +433,13 @@
             android:fontFamily="monospace"
             android:textIsSelectable="true"
             android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/export_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/export_log" />
 
         <Button
             android:id="@+id/clear_log"

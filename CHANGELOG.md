@@ -2,6 +2,49 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## 2.4 — Ferndiagnose
+
+Beides dient demselben Zweck: herausfinden, was passiert ist, ohne danebenzustehen.
+
+### Neu
+
+- **Logbuch als Datei sichern.** Ein vollständiger Bericht über den
+  Systemdialog — Gerät, Android-Version, alle Einstellungen, aktueller Zustand
+  und das gesamte Logbuch mit Datum. Keine Speicherberechtigung nötig.
+
+  Der Kopf der Datei ist der eigentliche Gewinn: Ein Logbuch allein beantwortet
+  nicht, auf welchem Gerät, mit welcher Aufnahmequelle und seit wann. Genau
+  danach fragt man sonst dreimal nach.
+
+- **Optionale Weboberfläche** (Standard aus, Port 8080). Zeigt im Browser eines
+  anderen Geräts Status, Pegel, ein live weiterlaufendes Spektrogramm, die
+  Empfängerliste und die letzten 30 Logbucheinträge; `/log.txt` liefert
+  denselben Bericht wie der Export.
+
+  **Nur lesen.** Der Server nimmt ausschließlich `GET` und `HEAD` an, die
+  Routenliste ist fest verdrahtet, keine Datei kommt vom Datenträger. Es gibt
+  keinen Weg, darüber etwas zu ändern, zu starten oder zu stoppen — das ist
+  Absicht. Höchstens vier Verbindungen gleichzeitig, 5 s Lesezeitlimit, kein
+  Keep-Alive. Die Seite ist eine einzige einkompilierte HTML-Datei unter 6 kB
+  und lädt nichts nach, also funktioniert sie auch ohne Internetzugang.
+
+  Der Zugangsschutz ist derselbe wie bei RTSP; ohne ihn sieht jeder im WLAN die
+  Seite. Mithören kann darüber niemand — es wird kein Ton übertragen.
+
+  Scheitert der Start, weil der Port belegt ist, läuft der Ton unverändert
+  weiter; es gibt nur eine Zeile im Logbuch.
+
+- **11 weitere Unit-Tests** (jetzt 46). Der Webserver wird gegen echte Sockets
+  geprüft: Routen, 404/405, `HEAD` ohne Rumpf, kompletter Digest-Ablauf,
+  überlange Anfragezeilen, und ob der Port nach dem Stoppen wirklich frei ist.
+
+### Anmerkung zu Android-Versionen
+
+Unverändert `minSdk 26` / `targetSdk 34`. Das README begründet jetzt beides:
+unterhalb von Android 8 gibt es keinen Vordergrunddienst mit Kanal, und ohne den
+wird ein Mikrofonstream nach Minuten eingefroren. Nach oben läuft die App auf
+15 und 16 weiter, bekommt deren strengere Regeln nur noch nicht aufgezwungen.
+
 ## 2.3 — Obergrenze für Empfänger
 
 ### Neu

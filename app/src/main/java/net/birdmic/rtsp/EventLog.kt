@@ -21,7 +21,10 @@ class EventLog(context: Context) {
     data class Entry(val timestamp: Long, val kind: Kind, val message: String) {
         fun format(): String = "${TIME_FORMAT.format(Date(timestamp))}  ${icon()} $message"
 
-        private fun icon() = when (kind) {
+        /** Zeitstempel mit Jahr -- fuer den Export, wo Eintraege Wochen alt sein koennen. */
+        fun formatLong(): String = "${FULL_FORMAT.format(Date(timestamp))}  ${icon()} $message"
+
+        fun icon() = when (kind) {
             Kind.START -> "▶"
             Kind.STOP -> "■"
             Kind.CLIENT_IN -> "→"
@@ -50,6 +53,10 @@ class EventLog(context: Context) {
     @Synchronized
     fun recent(limit: Int = CAPACITY): List<Entry> =
         entries.reversed().take(limit)
+
+    /** Aelteste zuerst -- die Reihenfolge, in der man einen Fehler nachliest. */
+    @Synchronized
+    fun all(): List<Entry> = entries.toList()
 
     @Synchronized
     fun clear() {
@@ -91,5 +98,6 @@ class EventLog(context: Context) {
         private const val CAPACITY = 100
         private const val KEY = "entries"
         private val TIME_FORMAT = SimpleDateFormat("dd.MM. HH:mm:ss", Locale.GERMANY)
+        private val FULL_FORMAT = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.GERMANY)
     }
 }

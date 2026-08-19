@@ -33,6 +33,7 @@ class RtspService : Service() {
     private var server: RtspServer? = null
     private var mdns: MdnsAdvertiser? = null
     private var battery: BatteryWatch? = null
+    private var web: WebServer? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
@@ -129,12 +130,25 @@ class RtspService : Service() {
             mdns = MdnsAdvertiser(this).also { it.register(prefs.mdnsName, prefs.port, emit) }
         }
 
+        // Der Webserver ist Beiwerk: laesst er sich nicht starten, weil der Port
+        // belegt ist, laeuft der Ton trotzdem. Nur eine Zeile ins Logbuch.
+        if (prefs.webEnabled) {
+            val server = WebServer(
+                port = prefs.webPort,
+                provider = WebStatus(this, prefs, log),
+                auth = credentials,
+                onEvent = emit,
+            )
+            web = server.takeIf { it.start() }
+        }
+
         audio = engine
         server = rtsp
         State.engine = engine
         State.rtsp = rtsp
         State.battery = battery
         State.mdns = mdns
+        State.webUrl = web?.let { "http://${Prefs.localIpv4() ?: "<handy-ip>"}:${it.boundPort}/" }
         State.running = true
         State.error = null
         State.url = buildUrl()
@@ -151,10 +165,12 @@ class RtspService : Service() {
         handler.removeCallbacks(notificationRefresh)
         mdns?.unregister()
         battery?.stop()
+        web?.stop()
         server?.stop()
         audio?.stop()
         mdns = null
         battery = null
+        web = null
         server = null
         audio = null
         releaseLocks()
@@ -163,6 +179,7 @@ class RtspService : Service() {
         State.rtsp = null
         State.battery = null
         State.mdns = null
+        State.webUrl = null
         prefs.wasRunning = false
     }
 
@@ -293,6 +310,9 @@ class RtspService : Service() {
         @Volatile var running = false
         @Volatile var url: String = ""
         @Volatile var error: String? = null
+
+        /** Adresse der Weboberflaeche, null wenn sie aus ist oder nicht startete. */
+        @Volatile var webUrl: String? = null
         @Volatile var startedAtElapsed: Long = 0L
         @Volatile var log: EventLog? = null
         @Volatile internal var engine: AudioEngine? = null

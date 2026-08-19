@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pathField: EditText
     private lateinit var mdnsBox: CheckBox
     private lateinit var mdnsNameField: EditText
+    private lateinit var webBox: CheckBox
+    private lateinit var webPortField: EditText
     private lateinit var udpTimeoutField: EditText
     private lateinit var maxClientsField: EditText
     private lateinit var maxPerIpField: EditText
@@ -114,6 +116,32 @@ class MainActivity : AppCompatActivity() {
             lastLogSize = -1
             renderLog()
         }
+        findViewById<Button>(R.id.export_log).setOnClickListener {
+            createDocument.launch(Diagnostics.fileName())
+        }
+    }
+
+    /**
+     * Speichern ueber den Systemdialog (Storage Access Framework). Der Vorteil
+     * gegenueber einem eigenen Ordner: keine Speicherberechtigung noetig, und
+     * die Datei landet dort, wo sie sich auch teilen laesst -- Downloads,
+     * Google Drive, ein angestecktes USB-Laufwerk.
+     */
+    private val createDocument = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        val report = Diagnostics.report(this, prefs, log)
+        val result = runCatching {
+            contentResolver.openOutputStream(uri)?.use { it.write(report.toByteArray()) }
+                ?: error("kein Schreibzugriff")
+        }
+        val message = if (result.isSuccess) {
+            getString(R.string.export_done, report.length / 1024 + 1)
+        } else {
+            getString(R.string.export_failed, result.exceptionOrNull()?.message ?: "?")
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -154,6 +182,8 @@ class MainActivity : AppCompatActivity() {
         pathField = findViewById(R.id.path)
         mdnsBox = findViewById(R.id.mdns)
         mdnsNameField = findViewById(R.id.mdns_name)
+        webBox = findViewById(R.id.web)
+        webPortField = findViewById(R.id.web_port)
         udpTimeoutField = findViewById(R.id.udp_timeout)
         maxClientsField = findViewById(R.id.max_clients)
         maxPerIpField = findViewById(R.id.max_per_ip)
@@ -170,6 +200,8 @@ class MainActivity : AppCompatActivity() {
         pathField.setText(prefs.path)
         mdnsBox.isChecked = prefs.mdnsEnabled
         mdnsNameField.setText(prefs.mdnsName)
+        webBox.isChecked = prefs.webEnabled
+        webPortField.setText(prefs.webPort.toString())
         udpTimeoutField.setText(prefs.udpTimeoutSeconds.toString())
         maxClientsField.setText(prefs.maxClients.toString())
         maxPerIpField.setText(prefs.maxClientsPerIp.toString())
@@ -280,6 +312,15 @@ class MainActivity : AppCompatActivity() {
             gainField.error = getString(R.string.bad_gain)
             return false
         }
+        val webPort = webPortField.text.toString().ifBlank { "0" }.toIntOrNull()
+        if (webPort == null || webPort !in 1024..65535) {
+            webPortField.error = getString(R.string.bad_port)
+            return false
+        }
+        if (webBox.isChecked && webPort == port) {
+            webPortField.error = getString(R.string.bad_web_port_same)
+            return false
+        }
         val timeout = udpTimeoutField.text.toString().ifBlank { "0" }.toIntOrNull()
         if (timeout == null || (timeout != 0 && timeout !in 30..3600)) {
             udpTimeoutField.error = getString(R.string.bad_timeout)
@@ -323,6 +364,8 @@ class MainActivity : AppCompatActivity() {
         prefs.highPassHz = Prefs.HIGH_PASS_OPTIONS[highPassSpinner.selectedItemPosition]
         prefs.mdnsEnabled = mdnsBox.isChecked
         prefs.mdnsName = mdnsNameField.text.toString()
+        prefs.webEnabled = webBox.isChecked
+        prefs.webPort = webPort
 
         spectrogram.sampleRate = prefs.sampleRate
         spectrogram.clear()
@@ -412,6 +455,7 @@ class MainActivity : AppCompatActivity() {
             buildString {
                 append(getString(R.string.detail, state.source))
                 state.mdnsName?.let { append(getString(R.string.detail_mdns, it)) }
+                state.webUrl?.let { append(getString(R.string.detail_web, it)) }
                 // Das System meldet ab Android 9, welches Mikrofon wirklich aktiv ist.
                 state.activeMicrophone?.let { append(getString(R.string.detail_active_mic, it)) }
                 if (state.restarts > 0) append(getString(R.string.detail_restarts, state.restarts))
@@ -488,7 +532,8 @@ class MainActivity : AppCompatActivity() {
     private fun setInputsEnabled(enabled: Boolean) {
         val views = listOf<android.view.View>(
             sourceSpinner, deviceSpinner, sampleRateSpinner, channelSpinner, highPassSpinner,
-            gainField, portField, pathField, mdnsBox, mdnsNameField, udpTimeoutField,
+            gainField, portField, pathField, mdnsBox, mdnsNameField, webBox, webPortField,
+            udpTimeoutField,
             maxClientsField, maxPerIpField, authUserField, authPasswordField, batteryWarnField,
         )
         for (view in views) view.isEnabled = enabled

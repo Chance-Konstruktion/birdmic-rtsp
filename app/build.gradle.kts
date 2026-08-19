@@ -11,8 +11,14 @@ android {
         applicationId = "net.birdmic.rtsp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "2.3"
+        versionCode = 8
+        versionName = "2.4"
+    }
+
+    // BuildConfig liefert Versionsname und -nummer an den Diagnosebericht.
+    // Seit AGP 8 muss man das ausdruecklich einschalten.
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
