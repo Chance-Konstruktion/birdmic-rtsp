@@ -18,6 +18,8 @@
 
 include:
   - project: 'Kimi/ci-vorlagen'
+    file: '/vorlagen/geheimnisse.yml'
+  - project: 'Kimi/ci-vorlagen'
     file: '/vorlagen/android.yml'
 
 variables:
