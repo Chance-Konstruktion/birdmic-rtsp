@@ -105,3 +105,48 @@ mitschnitt:
       # Ausdruecklich, obwohl oben schon nichts passt -- wer spaeter einen
       # Pfad ergaenzt, soll nicht versehentlich Gigabytes hochladen.
       - mitschnitt/*.wav
+
+# --------------------------------------------------------------------------
+# Geraetetest -- die App gegen echte Telefone pruefen
+#
+# Die Tests unter app/src/test/ pruefen die Rechenteile ohne Geraet und
+# ohne Netz. Genau das ist ihre Grenze: ob das fertige Telefon im WLAN
+# wirklich RTSP spricht, ob RTP-Info zum ersten Paket passt, ob nach fuenf
+# Sekunden ein Sender Report kommt und ob ueberhaupt Ton im Paket ist,
+# wissen sie nicht.
+#
+# Dieser Job redet mit den laufenden Geraeten. Er braucht sie also -- und
+# darf deshalb nicht bei jedem Push laufen: Ein ausgeschaltetes Telefon
+# waere sonst ein roter Build ohne Fehler im Code. Er startet nur, wenn
+# GERAETETEST gesetzt ist, von Hand oder aus einem Zeitplan.
+#
+# Das Ergebnis geht als JUnit-Bericht an GitLab und erscheint im Reiter
+# "Tests" der Pipeline -- je Geraet eine Testsuite, je Zusage ein Fall.
+geraetetest:
+  stage: test
+  image: python:3.13
+  timeout: 20m
+  rules:
+    - if: '$GERAETETEST'
+      when: always
+    - when: never
+  variables:
+    GERAETETEST_NETZ: "192.168.1.0/24"
+    # So viele Geraete muessen antworten, sonst ist der Job rot. Ein
+    # stiller Erfolg ohne ein einziges geprueftes Geraet waere die
+    # nutzloseste Art von gruen.
+    GERAETETEST_MINDESTENS: "1"
+    GIT_DEPTH: "1"
+  script:
+    - |
+      python3 werkzeuge/pruefen.py \
+        --netz "$GERAETETEST_NETZ" \
+        --mindestens "$GERAETETEST_MINDESTENS" \
+        --bericht geraetetest.xml
+  artifacts:
+    when: always
+    expire_in: 4 weeks
+    paths:
+      - geraetetest.xml
+    reports:
+      junit: geraetetest.xml

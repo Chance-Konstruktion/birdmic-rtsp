@@ -824,6 +824,82 @@ sich nachprüfen, ob die beiden Programme tun, was sie behaupten — die
 300 ms müssen im Bericht in **beiden** Spalten der Zeitachse auftauchen,
 einmal aus der Uhr und einmal aus dem gemessenen Pegelverlauf.
 
+### Über den Runner statt über einen Rechner
+
+Der GitLab-Runner steht im selben Netz wie die Telefone. Damit kann er den
+Mitschnitt übernehmen — nachts, ohne dass ein Rechner laufen muss.
+
+**Starten:** In GitLab unter *Build → Pipelines → Run pipeline* die Variable
+`MITSCHNITT_DAUER` mit der Sekundenzahl setzen. Ohne diese Variable läuft der
+Job nicht, auch nicht bei einem normalen Push.
+
+**Stoppen:** gar nicht — der Job beendet sich nach `MITSCHNITT_DAUER` selbst
+und lädt dann erst seine Artefakte hoch. Ein Abbruch über *Cancel* beendet
+zwar die Aufnahme, aber **die Artefakte gehen dabei verloren**. Wer früher
+Schluss machen will, nimmt lieber gleich eine kürzere Dauer.
+
+**Regelmäßig:** unter *Build → Pipeline schedules* ein Zeitplan mit derselben
+Variablen. Für die Morgendämmerung ist `30 4 * * *` der naheliegende Wert.
+
+Zwei Dinge sind im Container anders als auf einem Rechner, und beide sind
+im Job schon berücksichtigt:
+
+- **mDNS geht nicht.** Multicast kommt nicht durch die Netzwerkbrücke eines
+  Containers. Die Suche über `_rtsp._tcp` findet dort grundsätzlich nichts —
+  egal wie gut die App sich anmeldet. Deshalb fragt `aufnehmen.py --netz`
+  jede Adresse einmal auf Port 8554 und prüft per `DESCRIBE`, ob wirklich
+  BirdMic antwortet. Ein offener Port allein würde auch eine Kamera als
+  Mikrofon zählen.
+- **Das eigene Netz des Containers ist das Docker-Netz**, nicht das WLAN.
+  Ein automatisch ermitteltes Netz wäre also das falsche — darum steht
+  `MITSCHNITT_NETZ` ausdrücklich im Job.
+
+Rohaudio geht **nicht** ins Artefakt: eine Stunde mit drei Geräten sind rund
+1 GB, die Grenze liegt bei 100 MB. Aufgehoben werden der Bericht, die
+Messwerte je Gerät und Ausschnitte um die lautesten Stellen.
+
+Dass die Telefone dabei mehrere Empfänger gleichzeitig bedienen, ist keine
+Theorie: Während der Mitschnitt läuft, hängt BirdNET-Pi weiter am selben
+Stream. Jede Sitzung bekommt eine eigene SSRC.
+
+### Die App gegen echte Geräte prüfen
+
+Die Tests unter `app/src/test/` prüfen die Rechenteile — Digest, FFT,
+Hochpass, PacketQueue, RtpSender — ohne Gerät und ohne Netz. Genau das ist
+ihre Grenze. Ob das fertige Telefon im WLAN wirklich RTSP spricht, weiß
+keiner von ihnen.
+
+```bash
+python werkzeuge/pruefen.py --netz 192.168.1.0/24
+```
+
+Sucht die laufenden Geräte und prüft an jedem, was in dieser README als
+Zusage steht: dass `OPTIONS` alle Methoden nennt · dass `DESCRIBE` L16 mit
+Abtastrate und Kanalzahl liefert · dass `SETUP` TCP-interleaved mit Session
+und Timeout beantwortet · dass die `seq` und `rtptime` aus `PLAY` **zum
+ersten wirklich ankommenden Paket passen** · dass 100 Pakete ohne
+Sequenzsprung und ohne Zeitstempelsprung durchlaufen · dass binnen sechs
+Sekunden ein RTCP Sender Report kommt · dass die Uhr des Telefons stimmt ·
+dass überhaupt Ton im Strom ist · dass zwei Empfänger gleichzeitig bedient
+werden, jeder mit eigener SSRC · dass `GET_PARAMETER` die Sitzung wachhält
+und `TEARDOWN` sie sauber beendet · und dass die Weboberfläche einen
+gesunden Zustand meldet.
+
+Mit `--bericht ergebnis.xml` entsteht eine JUnit-Datei. In der Pipeline
+landet sie im Reiter *Tests*: je Gerät eine Suite, je Zusage ein Fall.
+
+Über den Runner läuft das mit der Variablen `GERAETETEST` — von Hand oder
+aus einem Zeitplan. Auch dieser Job ist bewusst gesperrt, solange die
+Variable fehlt: Ein ausgeschaltetes Telefon wäre sonst ein roter Build ohne
+einen Fehler im Code.
+
+Ein Beispiel dafür, dass das keine Formsache ist: Beim ersten Lauf gegen die
+beiden Testgeräte meldete die Prüfung *„Uhr des Geräts weicht um +2,9 s ab"*
+auf dem einen und −1,9 s auf dem anderen. Zusammen 4,8 Sekunden — dieselbe
+Zahl, die unabhängig davon auch der Mitschnitt-Bericht aus den Sender
+Reports errechnet hatte. Zwei verschiedene Wege, dasselbe Ergebnis: die
+Uhren gehen wirklich auseinander.
+
 ### Grenzen, die dabei bestehen bleiben
 
 - Der Pegelvergleich arbeitet mit **100 ms** Auflösung. Für die Frage, ob
@@ -972,10 +1048,7 @@ Rauschteppich-Indikator ableiten.
 
 ### RTSP-Integrationstests
 
-Die Unit-Tests decken die Bausteine ab, nicht das Protokoll im Zusammenspiel.
-Ein Testclient, der `OPTIONS → DESCRIBE → SETUP → PLAY → TEARDOWN` gegen einen
-laufenden Server fährt und die RTP-Pakete prüft, würde die verbleibende Lücke
-schließen — inklusive Fuzzing für den Parser.
+Erledigt -- siehe [Die App gegen echte Geräte prüfen](#die-app-gegen-echte-geräte-prüfen).
 
 ---
 
