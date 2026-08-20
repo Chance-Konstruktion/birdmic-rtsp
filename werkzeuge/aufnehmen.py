@@ -511,6 +511,98 @@ def _lese_antwort(daten, namen, adressen, dienste):
         pos += laenge
 
 
+def eigene_ip():
+    """Die eigene Adresse im lokalen Netz -- ohne ein Paket zu senden."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("192.0.2.1", 9))  # Adresse aus dem Dokumentationsnetz
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+def ist_birdmic(ip, port, zeit_grenze=1.5):
+    """Prueft, ob hinter einem offenen Port wirklich BirdMic steckt.
+
+    Ein offener Port 8554 kann auch eine Kamera sein. Gefragt wird deshalb
+    per DESCRIBE nach der Beschreibung: BirdMic nennt sich dort beim Namen.
+    Ist der Zugangsschutz an, kommt statt der Beschreibung eine 401 -- dann
+    steht der Name im Realm, und das reicht genauso.
+    """
+    try:
+        with socket.create_connection((ip, port), timeout=zeit_grenze) as s:
+            s.settimeout(zeit_grenze)
+            basis = f"rtsp://{ip}:{port}/"
+            s.sendall(
+                f"DESCRIBE {basis} RTSP/1.0\r\nCSeq: 1\r\n"
+                "Accept: application/sdp\r\n\r\n".encode()
+            )
+            antwort = b""
+            while len(antwort) < 4096:
+                stueck = s.recv(4096)
+                if not stueck:
+                    break
+                antwort += stueck
+                if b"\r\n\r\n" in antwort and b"BirdMic" in antwort:
+                    break
+            text = antwort.decode("utf-8", "replace")
+            if "BirdMic" not in text:
+                return None
+            # Den Pfad aus der Beschreibung uebernehmen, falls er nicht
+            # der uebliche ist -- er ist in der App frei einstellbar.
+            return f"rtsp://{ip}:{port}/audio.wav"
+    except OSError:
+        return None
+
+
+def netz_scannen(netz=None, port=8554, faeden=64):
+    """Sucht im lokalen Netz nach BirdMic, ohne mDNS.
+
+    Warum zusaetzlich zu mDNS: In einem Container -- und damit in jedem
+    CI-Job -- kommt Multicast nicht durch die Netzwerkbruecke. mDNS findet
+    dort grundsaetzlich nichts, ganz gleich wie gut die App sich anmeldet.
+    Ein gezielter Verbindungsversuch auf einen einzigen Port geht dagegen
+    durch, weil er ganz normaler ausgehender Verkehr ist.
+    """
+    if netz is None:
+        eigen = eigene_ip()
+        netz = eigen.rsplit(".", 1)[0] + ".0/24"
+    if "/" in netz:
+        basis, bits = netz.split("/")
+        bits = int(bits)
+        if bits != 24:
+            raise ValueError("Nur /24 wird unterstuetzt, oder eine einzelne Adresse")
+        praefix = basis.rsplit(".", 1)[0]
+        ziele = [f"{praefix}.{i}" for i in range(1, 255)]
+    else:
+        ziele = [netz]
+
+    gefunden = []
+    sperre = threading.Lock()
+    naechstes = [0]
+
+    def arbeiten():
+        while True:
+            with sperre:
+                if naechstes[0] >= len(ziele):
+                    return
+                ip = ziele[naechstes[0]]
+                naechstes[0] += 1
+            url = ist_birdmic(ip, port)
+            if url:
+                with sperre:
+                    gefunden.append((ip.replace(".", "-"), url))
+
+    gruppe = [threading.Thread(target=arbeiten, daemon=True) for _ in range(min(faeden, len(ziele)))]
+    for t in gruppe:
+        t.start()
+    for t in gruppe:
+        t.join(timeout=60)
+    return sorted(gefunden)
+
+
 def geraete_lesen(pfad):
     quellen = []
     if not os.path.exists(pfad):
@@ -533,18 +625,31 @@ def main():
     p.add_argument("adressen", nargs="*", help="rtsp://... (ohne Angabe: geraete.txt)")
     p.add_argument("--dauer", type=float, default=120.0, help="Sekunden (Vorgabe 120)")
     p.add_argument("--ordner", default=None, help="Zielordner (Vorgabe: aufnahmen/<Zeit>)")
-    p.add_argument("--suchen", action="store_true", help="Nur per mDNS suchen und beenden")
+    p.add_argument("--suchen", action="store_true", help="Nur suchen und beenden")
+    p.add_argument("--netz", default=None,
+                   help="Netz fuer die Suche, z.B. 192.168.1.0/24 (Vorgabe: eigenes Netz)")
+    p.add_argument("--port", type=int, default=8554, help="Port beim Suchen (Vorgabe 8554)")
     args = p.parse_args()
 
     hier = os.path.dirname(os.path.abspath(__file__))
 
     if args.suchen:
-        print("Suche vier Sekunden lang nach _rtsp._tcp ...")
-        gefunden = mdns_suchen()
-        for name, url in gefunden:
-            print(f"  {name}  {url}")
+        gefunden = []
+        if not args.netz:
+            print("Suche vier Sekunden lang per mDNS nach _rtsp._tcp ...")
+            gefunden = mdns_suchen()
+            for name, url in gefunden:
+                print(f"  {name}  {url}")
         if not gefunden:
-            print("  nichts gefunden -- laeuft der Stream, und ist mDNS in der App an?")
+            # In einem Container kommt Multicast nicht durch die Bruecke.
+            # Dann bleibt der direkte Weg: jede Adresse einmal anfragen.
+            netz = args.netz or (eigene_ip().rsplit(".", 1)[0] + ".0/24")
+            print(f"Kein Treffer per mDNS. Frage {netz} auf Port {args.port} ab ...")
+            gefunden = netz_scannen(netz, args.port)
+            for name, url in gefunden:
+                print(f"  {name}  {url}")
+        if not gefunden:
+            print("  nichts gefunden -- laeuft der Stream in der App?")
             return 1
         # Das Ergebnis gleich festhalten, damit spaeter niemand IP-Adressen
         # abtippen muss. Eine vorhandene Liste wird nicht ueberschrieben.
@@ -566,6 +671,10 @@ def main():
     if not quellen:
         print("Keine Adressen. Suche per mDNS ...")
         quellen = mdns_suchen()
+    if not quellen:
+        netz = args.netz or (eigene_ip().rsplit(".", 1)[0] + ".0/24")
+        print(f"Nichts per mDNS. Frage {netz} auf Port {args.port} ab ...")
+        quellen = netz_scannen(netz, args.port)
     if not quellen:
         print("Nichts gefunden. Adressen in werkzeuge/geraete.txt eintragen "
               "oder als Argument uebergeben.")

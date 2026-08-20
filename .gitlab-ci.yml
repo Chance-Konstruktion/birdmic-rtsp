@@ -38,3 +38,70 @@ android:assemble:
     expire_in: 4 weeks
     paths:
       - "**/build/outputs/apk/**/*.apk"
+
+# --------------------------------------------------------------------------
+# Mitschnitt ueber den Runner
+#
+# Der Runner steht im selben Netz wie die Telefone. Damit kann er das tun,
+# wofuer sonst ein Rechner laufen muesste: mehrere Streams gleichzeitig
+# aufnehmen und auswerten -- nachts, ohne dass jemand wach ist.
+#
+# Der Job laeuft **nicht** bei jedem Push. Er braucht MITSCHNITT_DAUER, und
+# das gibt es nur von Hand (Pipeline ausfuehren) oder aus einem Zeitplan.
+#
+# Zwei Dinge, die im Container anders sind als auf einem Rechner:
+#
+#   mDNS geht nicht. Multicast kommt nicht durch die Netzwerkbruecke des
+#   Containers -- die Suche per _rtsp._tcp findet dort grundsaetzlich
+#   nichts. Deshalb MITSCHNITT_NETZ: aufnehmen.py fragt dann jede Adresse
+#   des Netzes einmal auf Port 8554 und prueft per DESCRIBE, ob wirklich
+#   BirdMic antwortet.
+#
+#   Das eigene Netz des Containers ist das Docker-Netz, nicht das WLAN.
+#   Ein automatisch ermitteltes Netz waere also das falsche. Darum steht
+#   die Angabe hier ausdruecklich.
+#
+# Rohaudio geht **nicht** ins Artefakt: eine Stunde mit drei Geraeten sind
+# rund 1 GB, die Grenze liegt bei 100 MB. Aufgehoben werden der Bericht,
+# die Messwerte je Geraet und Ausschnitte um die lautesten Stellen -- damit
+# laesst sich alles nachvollziehen, und man kann sich anhoeren, was da war.
+mitschnitt:
+  stage: test
+  image: python:3.13
+  # Lang genug fuer eine Nacht. Die Vorgabe von einer Stunde wuerde einen
+  # laufenden Mitschnitt mittendrin abschneiden.
+  timeout: 8h
+  rules:
+    - if: '$MITSCHNITT_DAUER'
+      when: always
+    - when: never
+  variables:
+    # Das Netz, in dem die Telefone haengen -- nicht das des Containers.
+    MITSCHNITT_NETZ: "192.168.1.0/24"
+    MITSCHNITT_AUSSCHNITTE: "3"
+    GIT_DEPTH: "1"
+  script:
+    - python3 --version
+    - |
+      echo "Suche Geraete in $MITSCHNITT_NETZ ..."
+      python3 werkzeuge/aufnehmen.py --suchen --netz "$MITSCHNITT_NETZ"
+    - |
+      python3 werkzeuge/aufnehmen.py \
+        --dauer "$MITSCHNITT_DAUER" \
+        --netz "$MITSCHNITT_NETZ" \
+        --ordner mitschnitt
+    - python3 werkzeuge/auswerten.py mitschnitt --ausschnitte "$MITSCHNITT_AUSSCHNITTE"
+    # Der Bericht gehoert ins Protokoll, nicht nur ins Artefakt: dann steht
+    # das Ergebnis da, auch wenn das Artefakt laengst abgelaufen ist.
+    - cat mitschnitt/bericht.md
+  artifacts:
+    when: always
+    expire_in: 4 weeks
+    paths:
+      - mitschnitt/*.json
+      - mitschnitt/bericht.md
+      - mitschnitt/ausschnitte/
+    exclude:
+      # Ausdruecklich, obwohl oben schon nichts passt -- wer spaeter einen
+      # Pfad ergaenzt, soll nicht versehentlich Gigabytes hochladen.
+      - mitschnitt/*.wav

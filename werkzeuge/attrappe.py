@@ -25,6 +25,9 @@ import math, random, socket, struct, sys, threading, time
 NTP = 2_208_988_800
 RATE = 48000
 FRAMES = 960  # 20 ms
+# Wie lange die Attrappen senden. Laenger als jeder Testlauf sein soll --
+# ein Abbruch mittendrin ist sonst ein Testergebnis, das keiner wollte.
+LAUFZEIT = 3600
 
 
 def sende(sock, kanal, daten):
@@ -88,7 +91,7 @@ def bediene(conn, name, verlust, verzoegerung, pegel):
     n = 0
     letztes_rtcp = 0.0
     try:
-        while time.time() - start < 60:
+        while time.time() - start < LAUFZEIT:
             soll = start + n * FRAMES / RATE
             warten = soll - time.time()
             if warten > 0:
@@ -144,4 +147,4 @@ if __name__ == "__main__":
     for port, name, verlust, verz, pegel in aufbau:
         threading.Thread(target=server, args=(port, name, verlust, verz, pegel), daemon=True).start()
     print("Attrappen laufen auf 8554, 8555, 8556")
-    time.sleep(120)
+    time.sleep(LAUFZEIT)

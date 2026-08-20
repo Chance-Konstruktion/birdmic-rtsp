@@ -38,6 +38,7 @@ Ohne Argument wird der neueste Ordner unter `aufnahmen/` genommen.
 Gebraucht wird nur die Standardbibliothek.
 """
 
+import argparse
 import cmath
 import datetime
 import glob
@@ -211,10 +212,38 @@ def zeit(ts):
     return datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S.%f")[:-3]
 
 
+def ausschneiden(quelle, ziel, von_sek, bis_sek):
+    """Ein Stueck aus einer WAV-Datei in eine neue schreiben."""
+    with wave.open(quelle, "rb") as w:
+        rate = w.getframerate()
+        anfang = max(0, int(von_sek * rate))
+        laenge = min(w.getnframes() - anfang, int((bis_sek - von_sek) * rate))
+        if laenge <= 0:
+            return False
+        w.setpos(anfang)
+        daten = w.readframes(laenge)
+        with wave.open(ziel, "wb") as z:
+            z.setnchannels(w.getnchannels())
+            z.setsampwidth(w.getsampwidth())
+            z.setframerate(rate)
+            z.writeframes(daten)
+    return True
+
+
 def main():
+    p = argparse.ArgumentParser(description="Einen Aufnahmelauf auswerten")
+    p.add_argument("ordner", nargs="?", default=None,
+                   help="Aufnahmeordner (Vorgabe: der neueste)")
+    p.add_argument("--ausschnitte", type=int, default=0,
+                   help="So viele der lautesten Stellen je Geraet als eigene "
+                        "WAV-Datei herausschneiden (Vorgabe 0 = keine)")
+    p.add_argument("--rand", type=float, default=3.0,
+                   help="Sekunden Vorlauf und Nachlauf je Ausschnitt (Vorgabe 3)")
+    args = p.parse_args()
+
     hier = os.path.dirname(os.path.abspath(__file__))
-    if len(sys.argv) > 1:
-        ordner = sys.argv[1]
+    if args.ordner:
+        ordner = args.ordner
     else:
         kandidaten = sorted(glob.glob(os.path.join(hier, "aufnahmen", "*")))
         if not kandidaten:
@@ -249,19 +278,40 @@ def main():
     zeilen.append("## Was angekommen ist\n")
     zeilen.append("| Geraet | Dauer | Rate | Pakete | verloren | Stille eingefuegt | uebersteuert | Taktdrift |")
     zeilen.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
+    abbrueche = []
     for g in geraete:
+        # Ein Abbruch mittendrin macht das, was bis dahin ankam, nicht
+        # wertlos. Frueher fiel ein solches Geraet aus der ganzen
+        # Auswertung heraus -- damit verschwand mit dem Fehler auch die
+        # Messung. Der Fehler gehoert daneben, nicht anstelle.
         if g.get("fehler"):
-            zeilen.append(f"| {g['name']} | **{g['fehler']}** | | | | | | |")
+            abbrueche.append((g["name"], g["fehler"]))
+        if not g.get("verlauf"):
+            zeilen.append(
+                f"| {g['name']} | -- | | | | | | |" if not g.get("fehler")
+                else f"| {g['name']} | **nichts empfangen** | | | | | | |"
+            )
             continue
         drift = f"{g['taktdrift_ppm']} ppm" if g.get("taktdrift_ppm") is not None else "zu kurz"
+        marke = " ⚠" if g.get("fehler") else ""
         zeilen.append(
-            f"| {g['name']} | {g['sekunden']:.1f} s | {g['rate']} Hz | {g['pakete']} | "
+            f"| {g['name']}{marke} | {g['sekunden']:.1f} s | {g['rate']} Hz | {g['pakete']} | "
             f"{g['verlorene_pakete']} | {g['eingefuegte_stille_sekunden']:.2f} s | "
             f"{g['uebersteuerte_samples']} | {drift} |"
         )
     zeilen.append("")
+    if abbrueche:
+        zeilen.append("Abgebrochen waehrend der Aufnahme:\n")
+        for name, fehler in abbrueche:
+            zeilen.append(f"- **{name}**: {fehler}")
+        zeilen.append("")
+        zeilen.append(
+            "Was bis zum Abbruch ankam, ist unten trotzdem ausgewertet -- die "
+            "Dauer in der Tabelle sagt, wie viel das war. Eine kuerzere "
+            "Aufnahme ist weniger belastbar, aber sie ist nicht nichts.\n"
+        )
 
-    lebend = [g for g in geraete if not g.get("fehler") and g.get("verlauf")]
+    lebend = [g for g in geraete if g.get("verlauf")]
 
     # -- Zeitachse ---------------------------------------------------------
     zeilen.append("## Zeitachse\n")
@@ -414,12 +464,30 @@ def main():
             zeilen.append("")
             continue
         zeilen.append("")
-        zeilen.append("| ab | Dauer | Spitzenpegel |")
-        zeilen.append("| --- | --- | --- |")
-        for start, stop, wert in ereignisse[:10]:
-            zeilen.append(
-                f"| {start * block_s:.1f} s | {(stop - start) * block_s:.1f} s | {db(wert)} dB |"
-            )
+        kopf = "| ab | Dauer | Spitzenpegel |"
+        trenn = "| --- | --- | --- |"
+        if args.ausschnitte:
+            kopf += " Ausschnitt |"
+            trenn += " --- |"
+        zeilen.append(kopf)
+        zeilen.append(trenn)
+        wavpfad = os.path.join(ordner, g["name"] + ".wav")
+        schnittordner = os.path.join(ordner, "ausschnitte")
+        for nr, (start, stop, wert) in enumerate(ereignisse[:10], 1):
+            zeile = (f"| {start * block_s:.1f} s | {(stop - start) * block_s:.1f} s | "
+                     f"{db(wert)} dB |")
+            if args.ausschnitte:
+                schnitt = ""
+                if nr <= args.ausschnitte and os.path.exists(wavpfad):
+                    os.makedirs(schnittordner, exist_ok=True)
+                    name = f"{g['name']}_{start * block_s:07.1f}s.wav"
+                    if ausschneiden(
+                        wavpfad, os.path.join(schnittordner, name),
+                        start * block_s - args.rand, stop * block_s + args.rand,
+                    ):
+                        schnitt = f"`{name}`"
+                zeile += f" {schnitt} |"
+            zeilen.append(zeile)
         zeilen.append("")
 
     bericht = "\n".join(zeilen)
