@@ -32,6 +32,7 @@ Aufnahme, Autostart nach Neustart.
 - [Selbst bauen](#selbst-bauen)
 - [Zugangsschutz, mDNS, Logbuch](#zugangsschutz-mdns-logbuch)
 - [Weboberfläche](#weboberfläche)
+- [Mehrere Geräte gleichzeitig mitschneiden](#mehrere-geräte-gleichzeitig-mitschneiden)
 - [Bekannte Grenzen](#bekannte-grenzen)
 - [Aufbau des Codes](#aufbau-des-codes)
 - [Ideen für später](#ideen-für-später)
@@ -144,7 +145,9 @@ die 10 doppelt vertreten, einmal ab Werk und einmal als Custom-ROM auf
 Neun-Jahre-alter Hardware.
 
 Die Ergebnisse (Neustart-Zähler, Übersteuerung, welche Aufnahmequelle das untere
-Mikrofon trifft) kommen hier hinein, sobald sie da sind. Ein Custom-ROM im
+Mikrofon trifft) kommen hier hinein, sobald sie da sind. Aufgenommen und
+verglichen wird mit den Programmen unter
+[Mehrere Geräte gleichzeitig mitschneiden](#mehrere-geräte-gleichzeitig-mitschneiden). Ein Custom-ROM im
 Testfeld ist ausdrücklich erwünscht: Wenn die App dort sauber läuft, sagt das
 mehr über ihre Robustheit als drei Werksgeräte.
 
@@ -735,6 +738,106 @@ Ohne Zugangsschutz sieht **jeder im selben WLAN** Status, Logbuch und
 Spektrogramm. Nichts davon ist geheim, und mithören kann darüber niemand — die
 Seite überträgt keinen Ton. Trotzdem: ab Werk aus, und in einem geteilten Netz
 gehört der Zugangsschutz gesetzt. Der Verkehr ist unverschlüsseltes HTTP.
+
+## Mehrere Geräte gleichzeitig mitschneiden
+
+Im Ordner [`werkzeuge/`](werkzeuge/) liegen zwei Programme, mit denen sich
+mehrere BirdMic-Streams **gleichzeitig** aufnehmen und anschließend
+vergleichen lassen. Genau das braucht der Vergleichstest aus
+[Geräte im Test](#geräte-im-test): drei Telefone, dieselbe Position, eine
+Nacht — und danach eine Antwort auf die Frage, welches davon BirdNET das
+bessere Signal liefert.
+
+Beide brauchen **nur Python** und keine einzige Fremdbibliothek. Kein
+ffmpeg, kein numpy, keine Installation.
+
+### Aufnehmen
+
+```bash
+python werkzeuge/aufnehmen.py --suchen
+```
+
+Sucht per mDNS nach `_rtsp._tcp` und schreibt die gefundenen Geräte nach
+`werkzeuge/geraete.txt`. Danach genügt:
+
+```bash
+python werkzeuge/aufnehmen.py --dauer 300
+```
+
+Alle Sitzungen werden erst vollständig aufgebaut und dann gemeinsam
+gestartet, damit die Aufnahmen ohne Vorlauf nebeneinanderliegen. Je Gerät
+entsteht eine `.wav` und eine `.json` in `werkzeuge/aufnahmen/<Zeitpunkt>/`.
+
+Der Mitschnitt läuft über **TCP-interleaved**. Im WLAN ist das die
+robustere Variante, und es müssen keine UDP-Ports offen sein.
+
+### Warum nicht einfach drei Mal ffmpeg?
+
+Wegen zweier Dinge, die BirdMic mitliefert und die ffmpeg wegwirft:
+
+**Die Zeitreferenz.** Alle fünf Sekunden schickt die App einen RTCP Sender
+Report mit der Wanduhrzeit des Telefons. Daraus lässt sich für jede Datei
+ausrechnen, wann ihr erstes Sample entstanden ist. Ohne diese Zahl sind
+drei gleich lange Dateien nur *ungefähr* gleichzeitig — mit ihr sind sie
+wirklich vergleichbar.
+
+**Die Lücken.** Fällt ein RTP-Paket aus, hängt ffmpeg die nächsten Daten
+einfach hinterher: Die Datei wird kürzer als der Zeitraum, den sie
+darstellt, und alles danach ist verschoben. `aufnehmen.py` erkennt die
+Lücke am RTP-Zeitstempel, füllt sie mit Stille und schreibt die Anzahl in
+den Bericht. Eine Aufnahme mit stummen Stellen ist ein Messergebnis. Eine
+Aufnahme, die heimlich schrumpft, ist eine Falle.
+
+### Auswerten
+
+```bash
+python werkzeuge/auswerten.py
+```
+
+Nimmt den neuesten Lauf und schreibt `bericht.md` in denselben Ordner:
+
+| Abschnitt | Was darin steht |
+| --- | --- |
+| Was angekommen ist | Dauer, verlorene Pakete, eingefügte Stille, Übersteuerung, Taktdrift in ppm |
+| Zeitachse | Versatz der Geräte zueinander — **zweimal getrennt bestimmt** |
+| Pegel | Grundrauschen, Median, Spitze, Abstand zwischen Rauschen und lautestem Ereignis |
+| Frequenzverteilung | Pegel je Band, mit 2–8 kHz eigens hervorgehoben |
+| Lauteste Stellen | Wo im Mitschnitt etwas passiert ist, mit Zeitangabe |
+
+Der Punkt an der Zeitachse ist, dass der Versatz **zweimal auf getrennten
+Wegen** bestimmt wird: einmal aus den Uhren der Telefone, einmal aus der
+Kreuzkorrelation des gemessenen Lautstärkeverlaufs. Stimmen beide überein,
+sind die Aufnahmen nachweislich synchron. Weichen sie ab, gehen die
+Telefonuhren auseinander — und das steht dann im Bericht, statt dass jede
+weitere Zahl still auf einer falschen Annahme aufbaut.
+
+### Ohne Telefone prüfen
+
+```bash
+python werkzeuge/attrappe.py
+```
+
+Startet drei Attrappen auf `127.0.0.1:8554` bis `8556`, die dasselbe
+Protokoll sprechen wie die App: unterschiedlich laut, mit 300 ms
+Startversatz, und eine verliert absichtlich jedes 50. Paket. Damit lässt
+sich nachprüfen, ob die beiden Programme tun, was sie behaupten — die
+300 ms müssen im Bericht in **beiden** Spalten der Zeitachse auftauchen,
+einmal aus der Uhr und einmal aus dem gemessenen Pegelverlauf.
+
+### Grenzen, die dabei bestehen bleiben
+
+- Der Pegelvergleich arbeitet mit **100 ms** Auflösung. Für die Frage, ob
+  die Uhren stimmen, reicht das. Für eine Richtungsbestimmung aus
+  Laufzeitunterschieden reicht es **nicht**.
+- Bei einem **periodischen** Geräusch — Pumpe, Verkehr, Brummen — passt der
+  Lautstärkeverlauf an mehreren Stellen gleich gut. Der Bericht schreibt
+  dann `mehrdeutig` hin und behauptet nichts.
+- Das Grundrauschen ist nur zwischen Geräten mit **gleicher Verstärkung**
+  vergleichbar. Die Spalte *Abstand Rausch/Spitze* ist davon unabhängig.
+- Ein Vergleich sagt etwas über *diese* Aufnahme aus. Ein Gerät, das eine
+  ruhige Nacht lang gut war, kann im Regen ausfallen.
+
+---
 
 ## Bekannte Grenzen
 

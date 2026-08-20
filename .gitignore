@@ -26,3 +26,11 @@ Thumbs.db
 # sie ohne Build installieren kann. Sie liegt ausserhalb von build/ und wird
 # deshalb von keiner Regel oben erfasst -- eine Ausnahme waere wirkungslos.
 # Bei laengerer Historie besser auf GitHub Releases umstellen.
+
+# Mitschnitte und ihre Auswertung. Rohaudio gehoert nicht in ein
+# Git-Repository -- eine Nacht mit drei Geraeten sind rund 30 GB, und
+# nichts davon laesst sich sinnvoll versionieren.
+werkzeuge/aufnahmen/
+werkzeuge/geraete.txt
+__pycache__/
+*.pyc
