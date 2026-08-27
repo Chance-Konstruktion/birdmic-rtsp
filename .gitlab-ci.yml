@@ -94,29 +94,50 @@ versionsdatei:
       PRUEFUNG
 
 # --------------------------------------------------------------------------
-# Veroeffentlichen -- APK ins Paketregister, dazu ein Release
+# Veroeffentlichen -- APK signieren, ins Paketregister, dazu ein Release
 #
-# Laeuft nur auf einem Tag der Form v2.7. Damit ist das Veroeffentlichen
-# eine bewusste Handlung und nicht die Nebenwirkung eines Pushes.
+# Laeuft nur auf einem geschuetzten Tag der Form v2.7. Damit ist das
+# Veroeffentlichen eine bewusste Handlung und nicht die Nebenwirkung eines
+# Pushes -- und nur dort kommt die geschuetzte Schluesselvariable an.
 #
-# Keine `needs`-Angabe, mit Absicht: Ohne sie wartet die Stufe auf
-# `build` UND `test` vollstaendig. Mit `needs: android:assemble` waere die
-# APK schon veroeffentlicht, waehrend die Tests noch laufen -- und ein
-# roter Test kaeme zu spaet.
+# Warum hier ueberhaupt signiert wird:
 #
-# Die APK geht ins generische Paketregister, nicht als Job-Artefakt: Job-
-# Artefakte laufen ab. Eine Adresse, die nach vier Wochen ins Leere zeigt,
-# ist als Download-Verweis in einer App schlimmer als gar keine.
+# Die APK aus `android:assemble` traegt eine WEGWERFSIGNATUR. Der Container
+# ist bei jedem Job frisch, ~/.android/debug.keystore liegt nicht im Cache,
+# also wuerfelt Gradle jedes Mal einen neuen Debug-Schluessel. Gemessen an
+# zwei aufeinanderfolgenden Laeufen: b665a606... und 4ce0f463... -- zwei
+# CI-Builds koennen sich nicht einmal gegenseitig aktualisieren.
+#
+# Android nimmt eine Aktualisierung aber nur an, wenn die Signatur dieselbe
+# ist wie bei der installierten App. Eine falsch signierte Version bricht mit
+# "App nicht installiert" ab, ohne zu sagen warum. Deshalb wird die gebaute
+# APK hier mit dem echten Schluessel neu signiert -- und die Signatur danach
+# gegen den erwarteten Fingerabdruck geprueft. Genau diese Pruefung hat
+# gefehlt, als v2.7 das erste Mal veroeffentlicht wurde.
+#
+# Der Fingerabdruck ist kein Geheimnis, er steht in jeder ausgelieferten APK.
+# Geheim ist nur die Schluesseldatei in ANDROID_KEYSTORE_BASE64.
+#
+# `extends: .android-basis` bringt das SDK aus dem Cache mit -- daher kommen
+# apksigner und curl, ohne dass hier etwas nachinstalliert wird.
+#
+# Kein `needs`, mit Absicht: So wartet die Stufe auf `build` UND `test`
+# vollstaendig. Mit `needs: android:assemble` waere die APK schon
+# veroeffentlicht, waehrend die Tests noch laufen.
 veroeffentlichen:
+  extends: .android-basis
   stage: veroeffentlichen
-  image: alpine:3.20
-  timeout: 10m
+  timeout: 20m
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+$/'
   variables:
-    GIT_DEPTH: "1"
+    # Standardwerte des Android-Debug-Schluessels. Oeffentlich bekannt und
+    # kein Geheimnis -- die Sicherheit haengt an der Datei, nicht daran.
+    KEYSTORE_ALIAS: "androiddebugkey"
+    KEYSTORE_PASS: "android"
+    # Womit jede ausgelieferte APK signiert sein MUSS.
+    SIGNATUR_SOLL: "000c22b216ca8880f210b6edf3fb569485bc7f9a6c6c966f82da219b33bcbd10"
   script:
-    - apk add --no-cache curl
     - |
       set -eu
       VERSION="${CI_COMMIT_TAG#v}"
@@ -130,18 +151,65 @@ veroeffentlichen:
         exit 1
       fi
 
-      APK=$(find . -path '*/build/outputs/apk/release/*.apk' | head -1)
-      if [ -z "$APK" ]; then
+      ROH=$(find . -path '*/build/outputs/apk/release/*.apk' | head -1)
+      if [ -z "$ROH" ]; then
         echo "FEHLER - keine gebaute APK im Artefakt."
         exit 1
       fi
-      echo "Veroeffentliche $APK als BirdMic-$VERSION.apk"
 
+      if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+        echo "FEHLER - ANDROID_KEYSTORE_BASE64 fehlt. Ohne Schluessel keine"
+        echo "installierbare APK. Ist der Tag geschuetzt?"
+        exit 1
+      fi
+    - |
+      set -eu
+      VERSION="${CI_COMMIT_TAG#v}"
+      ROH=$(find . -path '*/build/outputs/apk/release/*.apk' | head -1)
+      APKSIGNER="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
+
+      # Nicht ins Protokoll, und nicht ins Artefakt.
+      mkdir -p veroeffentlicht
+      printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > /tmp/schluessel.jks
+      trap 'rm -f /tmp/schluessel.jks' EXIT
+
+      "$APKSIGNER" sign \
+        --ks /tmp/schluessel.jks \
+        --ks-pass "pass:$KEYSTORE_PASS" \
+        --ks-key-alias "$KEYSTORE_ALIAS" \
+        --key-pass "pass:$KEYSTORE_PASS" \
+        --out "veroeffentlicht/BirdMic-$VERSION.apk" \
+        "$ROH"
+
+      IST=$("$APKSIGNER" verify --print-certs "veroeffentlicht/BirdMic-$VERSION.apk" | grep -oE '[0-9a-f]{64}' | head -1)
+      echo "Signatur: $IST"
+      if [ "$IST" != "$SIGNATUR_SOLL" ]; then
+        echo "FEHLER - falsche Signatur."
+        echo "  erwartet: $SIGNATUR_SOLL"
+        echo "  bekommen: $IST"
+        echo "Diese APK liesse sich nicht ueber eine bestehende Installation"
+        echo "aktualisieren. Es wird nichts veroeffentlicht."
+        exit 1
+      fi
+      echo "Signatur stimmt mit der ausgelieferten Fassung ueberein."
+    - |
+      set -eu
+      VERSION="${CI_COMMIT_TAG#v}"
       PAKET="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/birdmic/${VERSION}/BirdMic-${VERSION}.apk"
+
       curl --fail --silent --show-error \
         --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-        --upload-file "$APK" "$PAKET"
+        --upload-file "veroeffentlicht/BirdMic-$VERSION.apk" "$PAKET"
       echo "Paket liegt unter $PAKET"
+
+      # Gegenprobe ohne Anmeldung: genau so laedt es ein Telefon.
+      code=$(curl --silent --output /dev/null --write-out '%{http_code}' "$PAKET")
+      if [ "$code" != "200" ]; then
+        echo "FEHLER - anonymer Abruf liefert HTTP $code."
+        echo "Die App traegt kein Token; damit waere der Verweis wertlos."
+        exit 1
+      fi
+      echo "Anonymer Abruf: HTTP 200"
 
       NOTIZ=$(grep -oE '"notes"[[:space:]]*:[[:space:]]*"[^"]*"' version.json | sed 's/.*: *"//; s/"$//')
       curl --fail --silent --show-error --request POST \
@@ -159,6 +227,11 @@ veroeffentlichen:
         }" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases" > /dev/null
       echo "Release BirdMic $VERSION angelegt"
+  artifacts:
+    when: on_success
+    expire_in: 4 weeks
+    paths:
+      - "veroeffentlicht/*.apk"
 
 # --------------------------------------------------------------------------
 # Mitschnitt ueber den Runner

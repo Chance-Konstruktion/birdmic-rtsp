@@ -25,6 +25,33 @@ Ab jetzt: Ein Tag der Form `v2.7` löst einen CI-Job aus, der die gebaute APK in
 - Veröffentlicht wird nur auf einem Tag, nie durch einen Push. Damit ist es eine
   bewusste Handlung.
 
+### Die CI signiert jetzt selbst — und prüft nach
+
+Beim ersten Anlauf ging genau das schief, wovor dieser Abschnitt warnt. Die APK
+aus `android:assemble` trägt eine **Wegwerfsignatur**: Der Container ist bei
+jedem Job frisch, `~/.android/debug.keystore` liegt nicht im Cache, also würfelt
+Gradle jedes Mal einen neuen Debug-Schlüssel. Gemessen an zwei aufeinander­
+folgenden Läufen:
+
+| Herkunft | Signatur |
+| --- | --- |
+| lokal gebaut, alle ausgelieferten APKs | `000c22b2…` |
+| CI-Lauf 1032 | `b665a606…` |
+| CI-Lauf 1033 | `4ce0f463…` |
+
+Zwei CI-Builds können sich also nicht einmal gegenseitig aktualisieren. Das
+erste v2.7 im Paketregister war damit nicht installierbar; es wurde gelöscht und
+neu veröffentlicht.
+
+Jetzt signiert der Job die gebaute APK mit dem echten Schlüssel (geschützte
+CI-Variable, nur auf geschützten Tags verfügbar) und **prüft den Fingerabdruck
+gegen den erwarteten Wert**. Stimmt er nicht, wird nichts veröffentlicht. Dazu
+ein anonymer Testabruf des hochgeladenen Pakets — die App trägt kein Token, ein
+Verweis, der eine Anmeldung verlangt, wäre wertlos.
+
+Der Fingerabdruck steht offen in der CI-Datei. Er ist kein Geheimnis, er steckt
+in jeder ausgelieferten APK; geheim ist allein die Schlüsseldatei.
+
 ### Übergang
 
 `BirdMic-2.7.apk` liegt **zusätzlich noch im Wurzelverzeichnis**. Nötig, weil
