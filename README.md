@@ -32,6 +32,7 @@ Aufnahme, Autostart nach Neustart.
 - [Selbst bauen](#selbst-bauen)
 - [Zugangsschutz, mDNS, Logbuch](#zugangsschutz-mdns-logbuch)
 - [Weboberfläche](#weboberfläche)
+- [Neue Versionen](#neue-versionen)
 - [Mehrere Geräte gleichzeitig mitschneiden](#mehrere-geräte-gleichzeitig-mitschneiden)
 - [Bekannte Grenzen](#bekannte-grenzen)
 - [Aufbau des Codes](#aufbau-des-codes)
@@ -187,7 +188,7 @@ Verhaltensänderungen — kein Umbau.
 
 ### Fertige APK
 
-`BirdMic-2.5.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
+`BirdMic-2.6.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
 Debug-Schlüssel (APK Signature Scheme v2).
 
 > `BirdMic-1.2.apk` liegt als **Rückfallebene** daneben. Version 2.0 bringt viele
@@ -202,7 +203,7 @@ Debug-Schlüssel (APK Signature Scheme v2).
 Oder per ADB:
 
 ```bash
-adb install -r BirdMic-2.5.apk
+adb install -r BirdMic-2.6.apk
 ```
 
 > Debug-signiert reicht für ein Gerät im eigenen WLAN. Für den Play Store
@@ -297,6 +298,7 @@ umstellen, neu starten.**
 | **Zugangsschutz** | aus | Benutzername + Passwort für Digest-Auth. Beide leer = kein Schutz. |
 | **Autostart** | ein | Startet nach Neustart wieder — aber nur, wenn der Stream beim Ausschalten lief. |
 | **Akkuwarnung** | 40 °C | Warnschwelle der Akkutemperatur, 0 = aus. |
+| **Nach neuer Version sehen** | an | Fragt beim Öffnen das Projekt-GitLab, höchstens alle sechs Stunden. Meldet nur — heruntergeladen und installiert wird von Hand. |
 | **Immer dunkel** | aus | Echtes AMOLED-Schwarz statt System-Dunkelmodus. **Spart keinen Strom** (im Betrieb ist der Bildschirm aus) — hilft beim Ablesen in der Dämmerung und gegen Einbrennen. |
 
 ### Hochpassfilter
@@ -589,7 +591,7 @@ Dateien.
 ./gradlew testReleaseUnitTest lintRelease
 ```
 
-**51 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
+**59 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
 
 | Testklasse | Prüft |
 | --- | --- |
@@ -599,6 +601,7 @@ Dateien.
 | `DigestAuthTest` | Gültige und ungültige Anmeldung, Methodenbindung, fremde Nonce, Zufälligkeit |
 | `PacketQueueTest` | Reihenfolge, Verwerfen des ältesten Pakets, garantiert blockierungsfreies `offer` |
 | `WebServerTest` | Läuft gegen echte Sockets: Routen, 404/405, HEAD ohne Rumpf, Digest-Ablauf, Überlängen, Port wirklich freigegeben |
+| `UpdateCheckTest` | Was die Versionsprüfung ablehnen muss: Unsinn statt JSON, unplausible Nummern, Dateinamen mit Pfad, Klartext-HTTP |
 | `ConnectionLimitTest` | Hält den Vorfall vom 27.08.2026 fest: abgeleitete Empfängerzählung wird unter 16 Threads nie negativ, die ältesten weichen statt der neuesten |
 
 Lint muss fehlerfrei durchlaufen, sonst bricht der Build ab. Es fängt vor allem
@@ -692,6 +695,65 @@ Neustarts:   0
 Genau die Angaben, nach denen man sonst dreimal nachfragt: welches Gerät,
 welche Quelle, seit wann, wie oft neu gestartet. Dieselbe Datei liefert die
 Weboberfläche unter `/log.txt`.
+
+---
+
+## Neue Versionen
+
+Die App sieht beim Öffnen nach, ob im Projekt eine neuere Fassung liegt, und
+zeigt dann oben eine Zeile mit Knopf. Der Knopf öffnet den Browser auf der APK —
+**heruntergeladen und installiert wird von Hand.**
+
+Das ist Absicht. Eine Installation ersetzt die laufende App und **beendet damit
+den Stream**. Bei einem Mikrofon, das seit Tagen sendet, ist das nichts, was im
+Hintergrund passieren darf.
+
+| | |
+| --- | --- |
+| Gefragt wird | ausschließlich das Projekt-GitLab, anonym lesbar — kein Token in der App, kein fremder Dienst |
+| Verbindung | nur HTTPS; über Klartext könnte jeder im Netz eine eigene Antwort unterschieben |
+| Häufigkeit | höchstens alle sechs Stunden, nur solange die App offen ist — kein Hintergrunddienst |
+| Kein Netz | kein Fehler, es erscheint einfach nichts |
+| Abschaltbar | unter *Dauerbetrieb*, Voreinstellung an |
+
+### Damit ein Update überhaupt installierbar ist
+
+Android nimmt eine Aktualisierung nur an, wenn die neue APK **dieselbe Signatur**
+trägt wie die installierte. Sonst bricht die Installation mit „App nicht
+installiert" ab, ohne zu sagen warum.
+
+Alle APKs dieses Projekts sind mit demselben Debug-Schlüssel signiert:
+
+```bash
+apksigner verify --print-certs BirdMic-2.6.apk
+```
+
+```
+Signer #1 certificate SHA-256 digest: 000c22b216ca8880f210b6edf3fb569485bc7f9a6c6c966f82da219b33bcbd10
+```
+
+Der Schlüssel liegt in `~/.android/debug.keystore` auf dem Rechner, auf dem
+gebaut wird, und ist bis 2056 gültig. **Diese 2,6-kB-Datei sichern** — geht sie
+verloren, ist über eine bestehende Installation nie wieder ein Update möglich,
+dann hilft nur deinstallieren und alles neu einrichten. Nicht ins Projekt legen:
+daraus ließe sich eine APK bauen, die sich als diese hier ausgibt.
+
+### Beim Veröffentlichen
+
+`version.json` im Wurzelverzeichnis ist die Quelle, aus der die App liest:
+
+```json
+{
+  "versionCode": 10,
+  "versionName": "2.6",
+  "apk": "BirdMic-2.6.apk",
+  "notes": "Meldet neue Versionen in der App."
+}
+```
+
+Der CI-Job `versionsdatei` wird rot, wenn diese Datei und `build.gradle.kts`
+auseinanderlaufen oder die benannte APK fehlt. Ohne ihn wäre der häufigste
+Fehler eine falsche Meldung bei grüner Pipeline.
 
 ---
 
@@ -918,8 +980,8 @@ Uhren gehen wirklich auseinander.
 
 ## Bekannte Grenzen
 
-- **Version 2.5 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
-  Teile sind durch 51 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
+- **Version 2.6 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
+  Teile sind durch 59 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
   Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
   liegt sie als Rückfallebene bei.
 - **Android 8 und 9 sind ungetestet.** `minSdk` ist 26, und die

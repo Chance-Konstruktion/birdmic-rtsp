@@ -12,6 +12,34 @@
 
         <!-- ==== Status ==== -->
 
+        <LinearLayout
+            android:id="@+id/update_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/update_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/update_warning"
+                android:textSize="12sp"
+                android:textStyle="italic" />
+
+            <Button
+                android:id="@+id/update_download"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/update_download" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/status"
             android:layout_width="match_parent"
@@ -410,6 +438,20 @@
             android:hint="40"
             android:importantForAutofill="no"
             android:inputType="number" />
+
+        <CheckBox
+            android:id="@+id/update_check"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/update_label" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/update_hint"
+            android:textSize="12sp"
+            android:textStyle="italic" />
 
         <Button
             android:id="@+id/battery"

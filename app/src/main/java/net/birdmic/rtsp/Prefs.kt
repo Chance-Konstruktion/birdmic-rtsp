@@ -128,6 +128,25 @@ class Prefs(context: Context) {
         get() = sp.getInt("battery_warn", 40)
         set(v) = sp.edit().putInt("battery_warn", v).apply()
 
+    /**
+     * Sieht beim Oeffnen der App nach, ob es eine neuere Fassung gibt.
+     *
+     * Zusammen mit den Empfaengergrenzen die zweite Voreinstellung, die nicht
+     * auf "aus" steht. Der Grund: Eine Meldung, die man erst einschalten muss,
+     * erreicht genau die Geraete nicht, um die es geht -- die zwei Telefone,
+     * die man monatelang nicht anfasst. Die Pruefung ruehrt weder Aufnahme noch
+     * Server an, laeuft nur im Vordergrund und fragt ausschliesslich das eigene
+     * GitLab.
+     */
+    var updateCheck: Boolean
+        get() = sp.getBoolean("update_check", true)
+        set(v) = sp.edit().putBoolean("update_check", v).apply()
+
+    /** Zeitpunkt der letzten Pruefung, damit nicht bei jedem Oeffnen gefragt wird. */
+    var lastUpdateCheck: Long
+        get() = sp.getLong("update_checked_at", 0L)
+        set(v) = sp.edit().putLong("update_checked_at", v).apply()
+
     /** Merkt sich, ob der Server lief -- nur dann startet er nach dem Boot wieder. */
     var wasRunning: Boolean
         get() = sp.getBoolean("was_running", false)

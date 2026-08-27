@@ -40,6 +40,12 @@
     <string name="bad_web_port_same">Webserver und RTSP können nicht denselben Port benutzen</string>
     <string name="detail_web">\nWeboberfläche: %1$s</string>
 
+    <string name="update_label">Beim Öffnen nach neuer Version sehen</string>
+    <string name="update_hint">Fragt nur das Projekt-GitLab, höchstens alle sechs Stunden, und nur solange die App offen ist. Heruntergeladen und installiert wird nichts von allein — eine Installation würde den laufenden Stream beenden.</string>
+    <string name="update_available">Version %1$s ist verfügbar (du hast %2$s)</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_warning">Das Installieren ersetzt die App und beendet den laufenden Stream.</string>
+
     <string name="udp_timeout_label">UDP-Timeout in Sekunden (0 = aus)</string>
     <string name="max_clients_label">Maximale Empfänger insgesamt (0 = unbegrenzt)</string>
     <string name="max_per_ip_label">Maximale Empfänger je Adresse (0 = unbegrenzt)</string>

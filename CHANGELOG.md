@@ -2,6 +2,57 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## 2.6 — Meldet neue Versionen
+
+Die App sieht beim Öffnen nach, ob im Projekt eine neuere Fassung liegt, und
+zeigt oben eine Zeile mit Knopf zum Herunterladen.
+
+**Sie meldet nur.** Heruntergeladen und installiert wird über den Browser, von
+Hand. Das ist Absicht, aus zwei Gründen: Zum Installieren bräuchte die App
+`REQUEST_INSTALL_PACKAGES` — die heikelste Berechtigung, die Android kennt — und
+der Gewinn wäre ein Fingertipp. Vor allem aber **ersetzt eine Installation die
+laufende App und beendet den Dienst**. Bei einem Mikrofon, das seit Tagen sendet,
+entscheidet darüber niemand außer dem Menschen davor. Ein Updater, der nachts
+von selbst zuschlägt, wäre hier genau das falsche Verhalten.
+
+### Wie es arbeitet
+
+- Gefragt wird ausschließlich das Projekt-GitLab, anonym lesbar. **Kein Token in
+  der App**, kein fremder Dienst, keine Kennzahlen nach außen.
+- Nur über HTTPS. Über Klartext könnte jeder im Netz eine eigene Antwort
+  unterschieben.
+- Höchstens alle sechs Stunden, und nur solange die App offen ist. Kein
+  Hintergrunddienst, kein Aufwachen in der Nacht.
+- Der Dateiname aus der Versionsdatei wird streng geprüft: einfacher Name, Endung
+  `.apk`, keine Pfade. Sonst könnte eine veränderte Versionsdatei den Knopf auf
+  eine beliebige Adresse lenken — sichtbar wäre nur „Neue Version".
+- Kein Netz, GitLab nicht erreichbar, Zeitüberschreitung: alles kein Fehler, es
+  erscheint einfach nichts.
+
+Abschaltbar unter *Dauerbetrieb*. Die Voreinstellung ist **an** — zusammen mit
+den Empfängergrenzen die zweite Ausnahme von der Regel „alles Neue steht auf
+aus". Grund: Eine Meldung, die man erst einschalten muss, erreicht genau die
+Geräte nicht, um die es geht — die zwei Telefone, die man monatelang nicht
+anfasst.
+
+### Voraussetzung, die leicht übersehen wird
+
+Ein Update über eine bestehende Installation verlangt **dieselbe Signatur**.
+Alle bisherigen APKs tragen sie (`000c22b2…`, gültig bis 2056), sie stammt aus
+`~/.android/debug.keystore` auf dem Rechner, auf dem gebaut wird. Geht diese
+2,6-kB-Datei verloren, ist nie wieder ein Update möglich — dann hilft nur
+deinstallieren und neu einrichten. **Sichern.**
+
+### Neu
+
+- `version.json` im Projektwurzelverzeichnis als Quelle der Wahrheit.
+- **CI-Job `versionsdatei`**: wird rot, wenn `version.json` und
+  `build.gradle.kts` auseinanderlaufen oder die benannte APK fehlt. Ohne den
+  wäre der häufigste Fehler eine falsche Meldung bei grüner Pipeline.
+- **8 weitere Unit-Tests** (jetzt 59), überwiegend darüber, was die Prüfung
+  ablehnen muss: Unsinn statt JSON, unplausible Nummern, Dateinamen mit Pfad,
+  Klartext-HTTP.
+
 ## 2.5 — Die Grenze aus 2.3 hat nicht gehalten
 
 Am 27.08.2026 standen **250 Empfänger derselben Adresse** im Stream, bei einer

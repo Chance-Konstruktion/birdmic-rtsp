@@ -11,8 +11,8 @@ android {
         applicationId = "net.birdmic.rtsp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "2.5"
+        versionCode = 10
+        versionName = "2.6"
     }
 
     // BuildConfig liefert Versionsname und -nummer an den Diagnosebericht.
@@ -48,4 +48,7 @@ dependencies {
     // Reine JVM-Tests fuer die geraeteunabhaengigen Teile: Filter, FFT,
     // RTP-Paketbau, Digest-Hashes, Warteschlange.
     testImplementation("junit:junit:4.13.2")
+    // org.json steckt auf dem Geraet in Android selbst, auf der JVM nicht.
+    // Nur fuer die Tests -- in der APK landet nichts davon.
+    testImplementation("org.json:json:20240303")
 }

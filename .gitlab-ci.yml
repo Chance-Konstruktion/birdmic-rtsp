@@ -42,6 +42,49 @@ android:assemble:
       - "**/build/outputs/apk/**/*.apk"
 
 # --------------------------------------------------------------------------
+# version.json gegen build.gradle.kts pruefen
+#
+# Die App liest version.json aus dem Projekt, um neue Fassungen zu melden.
+# Laufen die beiden auseinander, meldet sie entweder nichts oder etwas
+# Falsches -- und man merkt es nicht, weil alles gruen ist und die APK laeuft.
+#
+# Geprueft wird dreierlei: gleiche Nummer, gleicher Name, und dass die
+# benannte APK ueberhaupt im Projekt liegt.
+versionsdatei:
+  stage: test
+  image: python:3.13
+  timeout: 5m
+  variables:
+    GIT_DEPTH: "1"
+  script:
+    - |
+      python3 - <<'PRUEFUNG'
+      import json, re, sys, pathlib
+
+      gradle = pathlib.Path("app/build.gradle.kts").read_text(encoding="utf-8")
+      code = int(re.search(r"versionCode\s*=\s*(\d+)", gradle).group(1))
+      name = re.search(r'versionName\s*=\s*"([^"]+)"', gradle).group(1)
+
+      daten = json.loads(pathlib.Path("version.json").read_text(encoding="utf-8"))
+      fehler = []
+      if daten.get("versionCode") != code:
+          fehler.append(f"versionCode: version.json {daten.get('versionCode')} != build.gradle.kts {code}")
+      if daten.get("versionName") != name:
+          fehler.append(f"versionName: version.json {daten.get('versionName')!r} != build.gradle.kts {name!r}")
+
+      apk = daten.get("apk", "")
+      if not pathlib.Path(apk).is_file():
+          fehler.append(f"APK fehlt im Projekt: {apk}")
+
+      if fehler:
+          print("version.json passt nicht zum Build:")
+          for f in fehler:
+              print("  -", f)
+          sys.exit(1)
+      print(f"version.json stimmt: {name} (Build {code}), {apk} liegt bereit")
+      PRUEFUNG
+
+# --------------------------------------------------------------------------
 # Mitschnitt ueber den Runner
 #
 # Der Runner steht im selben Netz wie die Telefone. Damit kann er das tun,

@@ -64,6 +64,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var autostartBox: CheckBox
     private lateinit var amoledBox: CheckBox
     private lateinit var batteryWarnField: EditText
+    private lateinit var updateCheckBox: CheckBox
+    private lateinit var updateBox: android.view.View
+    private lateinit var updateText: TextView
 
     private val sourceChoices = SourceChoice.entries
     private var inputChoices: List<InputChoice> = emptyList()
@@ -192,6 +195,9 @@ class MainActivity : AppCompatActivity() {
         autostartBox = findViewById(R.id.autostart)
         amoledBox = findViewById(R.id.amoled)
         batteryWarnField = findViewById(R.id.battery_warn)
+        updateCheckBox = findViewById(R.id.update_check)
+        updateBox = findViewById(R.id.update_box)
+        updateText = findViewById(R.id.update_text)
     }
 
     private fun loadSettingsIntoFields() {
@@ -209,6 +215,11 @@ class MainActivity : AppCompatActivity() {
         authPasswordField.setText(prefs.authPassword)
         autostartBox.isChecked = prefs.autostart
         batteryWarnField.setText(prefs.batteryWarnCelsius.toString())
+        updateCheckBox.isChecked = prefs.updateCheck
+        updateCheckBox.setOnCheckedChangeListener { _, checked ->
+            prefs.updateCheck = checked
+            if (checked) checkForUpdate(force = true) else updateBox.visibility = android.view.View.GONE
+        }
 
         autostartBox.setOnCheckedChangeListener { _, checked -> prefs.autostart = checked }
 
@@ -266,6 +277,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        checkForUpdate(force = false)
         // Geraeteliste neu aufbauen: ein USB-Mikrofon kann zwischenzeitlich
         // an- oder abgesteckt worden sein.
         setupDeviceSpinner()
@@ -412,6 +424,51 @@ class MainActivity : AppCompatActivity() {
             .setData(Uri.fromParts("package", packageName, null))
         runCatching { startActivity(fallback) }
             .onFailure { Toast.makeText(this, R.string.no_settings, Toast.LENGTH_SHORT).show() }
+    }
+
+    /**
+     * Fragt im Hintergrund nach einer neueren Fassung und blendet oben einen
+     * Hinweis ein.
+     *
+     * Laeuft nur im Vordergrund und hoechstens alle [UPDATE_INTERVAL_MS]. Kein
+     * Hintergrunddienst, kein WorkManager: Eine App, die im Dauerbetrieb ein
+     * Mikrofon sendet, soll nicht zusaetzlich nachts aufwachen, um nach sich
+     * selbst zu sehen.
+     */
+    private fun checkForUpdate(force: Boolean) {
+        if (!prefs.updateCheck) {
+            updateBox.visibility = android.view.View.GONE
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (!force && now - prefs.lastUpdateCheck < UPDATE_INTERVAL_MS) return
+        prefs.lastUpdateCheck = now
+
+        Thread({
+            val release = UpdateCheck.newerThan(UpdateCheck.fetch(), BuildConfig.VERSION_CODE)
+            handler.post {
+                // Die Activity kann waehrend der Abfrage verschwunden sein.
+                if (isFinishing || isDestroyed) return@post
+                showUpdate(release)
+            }
+        }, "birdmic-update").apply { isDaemon = true }.start()
+    }
+
+    private fun showUpdate(release: UpdateCheck.Release?) {
+        if (release == null) {
+            updateBox.visibility = android.view.View.GONE
+            return
+        }
+        updateBox.visibility = android.view.View.VISIBLE
+        updateText.text = buildString {
+            append(getString(R.string.update_available, release.versionName, BuildConfig.VERSION_NAME))
+            if (release.notes.isNotBlank()) append("\n").append(release.notes)
+        }
+        findViewById<Button>(R.id.update_download).setOnClickListener {
+            val browse = Intent(Intent.ACTION_VIEW, Uri.parse(release.downloadUrl))
+            runCatching { startActivity(browse) }
+                .onFailure { Toast.makeText(this, R.string.no_settings, Toast.LENGTH_SHORT).show() }
+        }
     }
 
     /**
@@ -563,5 +620,8 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val REFRESH_MS = 120L
         const val LOG_LINES = 15
+
+        /** Sechs Stunden -- oefter braucht niemand zu wissen, dass es nichts Neues gibt. */
+        const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 }
