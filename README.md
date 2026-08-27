@@ -191,6 +191,10 @@ Verhaltensänderungen — kein Umbau.
 `BirdMic-2.6.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
 Debug-Schlüssel (APK Signature Scheme v2).
 
+Im Wurzelverzeichnis liegen nur zwei APKs: die aktuelle und die erprobte
+Rückfallebene. Ältere Fassungen stehen unter [`archiv/`](archiv/) mit einer
+Übersicht, was sie jeweils bringen.
+
 > `BirdMic-1.2.apk` liegt als **Rückfallebene** daneben. Version 2.0 bringt viele
 > neue Funktionen, die nicht auf einem Gerät im Dauerbetrieb erprobt sind — alle
 > Neuerungen sind abschaltbar und stehen im Auslieferungszustand auf „aus", so
