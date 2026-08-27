@@ -188,7 +188,7 @@ Verhaltensänderungen — kein Umbau.
 
 ### Fertige APK
 
-`BirdMic-2.6.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
+`BirdMic-2.7.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
 Debug-Schlüssel (APK Signature Scheme v2).
 
 Im Wurzelverzeichnis liegen nur zwei APKs: die aktuelle und die erprobte
@@ -207,7 +207,7 @@ Rückfallebene. Ältere Fassungen stehen unter [`archiv/`](archiv/) mit einer
 Oder per ADB:
 
 ```bash
-adb install -r BirdMic-2.6.apk
+adb install -r BirdMic-2.7.apk
 ```
 
 > Debug-signiert reicht für ein Gerät im eigenen WLAN. Für den Play Store
@@ -595,7 +595,7 @@ Dateien.
 ./gradlew testReleaseUnitTest lintRelease
 ```
 
-**59 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
+**60 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
 
 | Testklasse | Prüft |
 | --- | --- |
@@ -729,7 +729,7 @@ installiert" ab, ohne zu sagen warum.
 Alle APKs dieses Projekts sind mit demselben Debug-Schlüssel signiert:
 
 ```bash
-apksigner verify --print-certs BirdMic-2.6.apk
+apksigner verify --print-certs BirdMic-2.7.apk
 ```
 
 ```
@@ -742,22 +742,50 @@ verloren, ist über eine bestehende Installation nie wieder ein Update möglich,
 dann hilft nur deinstallieren und alles neu einrichten. Nicht ins Projekt legen:
 daraus ließe sich eine APK bauen, die sich als diese hier ausgibt.
 
+### Woher die APK kommt
+
+Seit 2.7 liegen die fertigen APKs im **Paketregister** des Projekts, nicht mehr
+im Repository. Der Verweis in der App zeigt dorthin:
+
+```
+https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/2.7/BirdMic-2.7.apk
+```
+
+Der Grund ist Größe: Eine eingecheckte APK bleibt für immer in der Historie —
+2,6 MB je Version, bei 4.000 Zeilen Quelltext. Das Repository bestand vor der
+Umstellung praktisch vollständig aus APKs. Job-Artefakte wären die naheliegende
+Alternative, laufen aber ab; eine Adresse, die nach vier Wochen ins Leere zeigt,
+ist als Verweis in einer App schlimmer als gar keiner.
+
+Unter [Releases](https://gitlab.schanz.ipv64.net/chance-konstruktion/birdmic-rtsp/-/releases)
+steht zu jeder Version die APK und was sie bringt.
+
 ### Beim Veröffentlichen
 
 `version.json` im Wurzelverzeichnis ist die Quelle, aus der die App liest:
 
 ```json
 {
-  "versionCode": 10,
-  "versionName": "2.6",
-  "apk": "BirdMic-2.6.apk",
-  "notes": "Meldet neue Versionen in der App."
+  "versionCode": 11,
+  "versionName": "2.7",
+  "apk": "BirdMic-2.7.apk",
+  "notes": "APKs kommen jetzt aus dem Paketregister."
 }
 ```
 
 Der CI-Job `versionsdatei` wird rot, wenn diese Datei und `build.gradle.kts`
 auseinanderlaufen oder die benannte APK fehlt. Ohne ihn wäre der häufigste
 Fehler eine falsche Meldung bei grüner Pipeline.
+
+Veröffentlicht wird über einen Tag — nie durch einen Push:
+
+```bash
+git tag v2.7 && git push origin v2.7
+```
+
+Der Job `veroeffentlichen` läuft erst, wenn **alle** Tests und Lint durch sind,
+vergleicht den Tag mit `build.gradle.kts`, lädt die APK ins Paketregister und
+legt das Release an. Stimmen Tag und Build nicht überein, bricht er ab.
 
 ---
 
@@ -984,8 +1012,8 @@ Uhren gehen wirklich auseinander.
 
 ## Bekannte Grenzen
 
-- **Version 2.6 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
-  Teile sind durch 59 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
+- **Version 2.7 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
+  Teile sind durch 60 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
   Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
   liegt sie als Rückfallebene bei.
 - **Android 8 und 9 sind ungetestet.** `minSdk` ist 26, und die

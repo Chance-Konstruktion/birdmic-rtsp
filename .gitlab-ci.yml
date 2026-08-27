@@ -24,6 +24,15 @@ include:
     file: '/vorlagen/android.yml'
     ref: 65c48c20f447f46baaa1a46cda655b656cca15e3
 
+# Die Vorlage bringt nur `build` und `test` mit und warnt zu Recht: Ein
+# Job mit unbekanntem Stufennamen laesst die GANZE Pipeline vor dem ersten
+# Job scheitern, auch die Jobs, die damit nichts zu tun haben. Deshalb
+# stehen die Stufen hier ausdruecklich, sobald eine dritte dazukommt.
+stages:
+  - build
+  - test
+  - veroeffentlichen
+
 variables:
   # Die Release-Variante nimmt die Debug-Signatur (siehe
   # app/build.gradle.kts) und baut damit ohne Keystore. Deshalb wird hier
@@ -83,6 +92,73 @@ versionsdatei:
           sys.exit(1)
       print(f"version.json stimmt: {name} (Build {code}), {apk} liegt bereit")
       PRUEFUNG
+
+# --------------------------------------------------------------------------
+# Veroeffentlichen -- APK ins Paketregister, dazu ein Release
+#
+# Laeuft nur auf einem Tag der Form v2.7. Damit ist das Veroeffentlichen
+# eine bewusste Handlung und nicht die Nebenwirkung eines Pushes.
+#
+# Keine `needs`-Angabe, mit Absicht: Ohne sie wartet die Stufe auf
+# `build` UND `test` vollstaendig. Mit `needs: android:assemble` waere die
+# APK schon veroeffentlicht, waehrend die Tests noch laufen -- und ein
+# roter Test kaeme zu spaet.
+#
+# Die APK geht ins generische Paketregister, nicht als Job-Artefakt: Job-
+# Artefakte laufen ab. Eine Adresse, die nach vier Wochen ins Leere zeigt,
+# ist als Download-Verweis in einer App schlimmer als gar keine.
+veroeffentlichen:
+  stage: veroeffentlichen
+  image: alpine:3.20
+  timeout: 10m
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+$/'
+  variables:
+    GIT_DEPTH: "1"
+  script:
+    - apk add --no-cache curl
+    - |
+      set -eu
+      VERSION="${CI_COMMIT_TAG#v}"
+
+      # Der Tag muss zu dem passen, was gebaut wurde. Sonst zeigt das
+      # Release auf eine Datei mit anderer Versionsnummer, und niemand
+      # merkt es, weil beides existiert.
+      GEBAUT=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]+"' app/build.gradle.kts | grep -oE '"[^"]+"' | tr -d '"')
+      if [ "$VERSION" != "$GEBAUT" ]; then
+        echo "FEHLER - Tag v$VERSION, aber build.gradle.kts sagt $GEBAUT."
+        exit 1
+      fi
+
+      APK=$(find . -path '*/build/outputs/apk/release/*.apk' | head -1)
+      if [ -z "$APK" ]; then
+        echo "FEHLER - keine gebaute APK im Artefakt."
+        exit 1
+      fi
+      echo "Veroeffentliche $APK als BirdMic-$VERSION.apk"
+
+      PAKET="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/birdmic/${VERSION}/BirdMic-${VERSION}.apk"
+      curl --fail --silent --show-error \
+        --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+        --upload-file "$APK" "$PAKET"
+      echo "Paket liegt unter $PAKET"
+
+      NOTIZ=$(grep -oE '"notes"[[:space:]]*:[[:space:]]*"[^"]*"' version.json | sed 's/.*: *"//; s/"$//')
+      curl --fail --silent --show-error --request POST \
+        --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+        --header "Content-Type: application/json" \
+        --data "{
+          \"tag_name\": \"$CI_COMMIT_TAG\",
+          \"name\": \"BirdMic $VERSION\",
+          \"description\": \"$NOTIZ\n\nAlle Aenderungen: [CHANGELOG.md](${CI_PROJECT_URL}/-/blob/main/CHANGELOG.md)\",
+          \"assets\": { \"links\": [ {
+            \"name\": \"BirdMic-$VERSION.apk\",
+            \"url\": \"$PAKET\",
+            \"link_type\": \"package\"
+          } ] }
+        }" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases" > /dev/null
+      echo "Release BirdMic $VERSION angelegt"
 
 # --------------------------------------------------------------------------
 # Mitschnitt ueber den Runner

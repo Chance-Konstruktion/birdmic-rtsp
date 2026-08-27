@@ -2,6 +2,49 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## 2.7 — APKs kommen aus dem Paketregister
+
+Bis 2.6 lag jede fertige APK im Repository. Das war der kürzeste Weg zu einer
+installierbaren Datei, hat aber einen Preis, der erst mit der Zeit sichtbar wird:
+**das Repository bestand am Ende zu 100 % aus APKs** — 17,3 MB in 7 Dateien, bei
+4.000 Zeilen Quelltext. Jede Version legte dauerhaft 2,6 MB drauf, auch nach dem
+Löschen, weil die Historie sie behält.
+
+Ab jetzt: Ein Tag der Form `v2.7` löst einen CI-Job aus, der die gebaute APK ins
+**generische Paketregister** legt und ein **Release** dazu anlegt.
+
+- **Job-Artefakte wären die naheliegende Alternative — sie laufen aber ab.** Eine
+  Adresse, die nach vier Wochen ins Leere zeigt, ist als Download-Verweis in
+  einer App schlimmer als gar keiner. Pakete bleiben.
+- **Kein `needs` im Job**, mit Absicht: So wartet die Veröffentlichung auf
+  `build` *und* `test` vollständig. Mit `needs: android:assemble` wäre die APK
+  schon draußen, während die Tests noch laufen.
+- Der Job **vergleicht den Tag mit `build.gradle.kts`** und bricht ab, wenn beide
+  nicht übereinstimmen. Sonst zeigt ein Release auf eine Datei mit anderer
+  Versionsnummer, und niemand merkt es, weil beides existiert.
+- Veröffentlicht wird nur auf einem Tag, nie durch einen Push. Damit ist es eine
+  bewusste Handlung.
+
+### Übergang
+
+`BirdMic-2.7.apk` liegt **zusätzlich noch im Wurzelverzeichnis**. Nötig, weil
+Version 2.6 dort und nur dort sucht — ohne diese Kopie liefe die erste echte
+Update-Meldung ins Leere. Ab 2.8 entfällt sie; wer dann noch 2.6 hat, muss einmal
+von Hand nachziehen.
+
+Ältere APKs stehen unter `archiv/`. Das ist Ordnung, keine Platzersparnis: Was in
+der Historie liegt, bleibt dort. Nur das Wachstum hört auf.
+
+### Geändert
+
+- Die Update-Prüfung baut die Adresse jetzt aus Versionsname und Dateiname
+  (`…/packages/generic/birdmic/2.7/BirdMic-2.7.apk`). **Beide werden geprüft** —
+  der Versionsname darf nur Ziffern und Punkte enthalten, weil er als Pfadteil in
+  die Adresse eingeht. Ein Test hält das fest.
+- Die Stufen stehen jetzt ausdrücklich in `.gitlab-ci.yml`. Die gemeinsame
+  Vorlage kennt nur `build` und `test`, und ein Job mit unbekanntem Stufennamen
+  lässt die *gesamte* Pipeline vor dem ersten Job scheitern.
+
 ## 2.6 — Meldet neue Versionen
 
 Die App sieht beim Öffnen nach, ob im Projekt eine neuere Fassung liegt, und

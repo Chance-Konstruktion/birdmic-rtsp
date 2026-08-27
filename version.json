@@ -1,6 +1,6 @@
 {
-  "versionCode": 10,
-  "versionName": "2.6",
-  "apk": "BirdMic-2.6.apk",
-  "notes": "Meldet neue Versionen in der App. Davor: Grenze für Empfänger repariert, Logbuch geteilt."
+  "versionCode": 11,
+  "versionName": "2.7",
+  "apk": "BirdMic-2.7.apk",
+  "notes": "APKs kommen jetzt aus dem Paketregister statt aus dem Repository."
 }

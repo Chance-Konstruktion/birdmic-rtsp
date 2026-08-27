@@ -24,8 +24,18 @@ object UpdateCheck {
     const val VERSION_URL =
         "https://gitlab.schanz.ipv64.net/chance-konstruktion/birdmic-rtsp/-/raw/main/version.json"
 
+    /**
+     * Das generische Paketregister des Projekts, nicht das Repository.
+     *
+     * Seit 2.7 liegen die APKs dort statt eingecheckt im Wurzelverzeichnis:
+     * Jede eingecheckte APK bleibt fuer immer in der Historie -- 2,6 MB je
+     * Version, bei einem Projekt mit 4000 Zeilen Quelltext. Job-Artefakte
+     * waeren die naheliegende Alternative, laufen aber ab, und eine Adresse,
+     * die nach vier Wochen ins Leere zeigt, ist als Verweis in einer App
+     * schlimmer als gar keiner.
+     */
     private const val DOWNLOAD_BASE =
-        "https://gitlab.schanz.ipv64.net/chance-konstruktion/birdmic-rtsp/-/raw/main/"
+        "https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/"
 
     /** Genug fuer die Datei, klein genug, dass eine falsche Antwort nichts kostet. */
     private const val MAX_BYTES = 8192
@@ -37,7 +47,7 @@ object UpdateCheck {
         val apk: String,
         val notes: String,
     ) {
-        val downloadUrl: String get() = DOWNLOAD_BASE + apk
+        val downloadUrl: String get() = "$DOWNLOAD_BASE$versionName/$apk"
     }
 
     /**
@@ -54,11 +64,15 @@ object UpdateCheck {
         val name = root.getString("versionName").trim()
         val apk = root.getString("apk").trim()
 
-        if (code <= 0 || name.isEmpty()) return null
+        if (code <= 0 || !isPlainVersion(name)) return null
         if (!isPlainApkName(apk)) return null
 
         Release(code, name, apk, root.optString("notes").trim())
     }.getOrNull()
+
+    /** Nur Ziffern und Punkte -- der Name geht als Pfadteil in die Adresse ein. */
+    private fun isPlainVersion(name: String): Boolean =
+        name.isNotEmpty() && name.length <= 16 && name.all { it.isDigit() || it == '.' }
 
     private fun isPlainApkName(name: String): Boolean =
         name.endsWith(".apk", ignoreCase = true) &&

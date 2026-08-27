@@ -11,8 +11,8 @@ android {
         applicationId = "net.birdmic.rtsp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "2.6"
+        versionCode = 11
+        versionName = "2.7"
     }
 
     // BuildConfig liefert Versionsname und -nummer an den Diagnosebericht.

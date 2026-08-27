@@ -25,7 +25,8 @@ class UpdateCheckTest {
         assertEquals("2.6", release.versionName)
         assertEquals("Neues", release.notes)
         assertTrue(release.downloadUrl.startsWith("https://"))
-        assertTrue(release.downloadUrl.endsWith("/BirdMic-2.6.apk"))
+        // Adresse im Paketregister: .../birdmic/<version>/<datei>
+        assertTrue(release.downloadUrl.endsWith("/birdmic/2.6/BirdMic-2.6.apk"))
     }
 
     @Test
@@ -48,6 +49,20 @@ class UpdateCheckTest {
         assertNull(UpdateCheck.parse("""{"versionCode":0,"versionName":"x","apk":"a.apk"}"""))
         assertNull(UpdateCheck.parse("""{"versionCode":-5,"versionName":"x","apk":"a.apk"}"""))
         assertNull(UpdateCheck.parse("""{"versionCode":10,"versionName":"","apk":"a.apk"}"""))
+    }
+
+    @Test
+    fun `der Versionsname darf nicht woandershin zeigen`() {
+        // Er geht als Pfadteil in die Downloadadresse ein -- also dieselbe
+        // Strenge wie beim Dateinamen.
+        // "2.6 " fehlt hier bewusst: Leerraum wird abgeschnitten, das ist
+        // beabsichtigt und aendert die Adresse nicht.
+        val bad = listOf("../../andere", "2.6/../../x", "zwei-komma-sechs", "2.6;rm", "2.6?x=1")
+        for (name in bad) {
+            val json = """{"versionCode":10,"versionName":"$name","apk":"a.apk"}"""
+            assertNull("$name haette abgelehnt werden muessen", UpdateCheck.parse(json))
+        }
+        assertNotNull(UpdateCheck.parse("""{"versionCode":10,"versionName":"2.6","apk":"a.apk"}"""))
     }
 
     @Test
