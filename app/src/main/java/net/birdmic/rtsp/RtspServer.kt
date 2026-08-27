@@ -9,7 +9,6 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
 
@@ -37,11 +36,18 @@ class RtspServer(
     @Volatile private var running = false
 
     private val connections = CopyOnWriteArrayList<Connection>()
-    private val playing = AtomicInteger(0)
     private val bytesSent = AtomicLong(0)
 
-    /** Anzahl der Clients, die gerade tatsaechlich Audio empfangen. */
-    val playingClients: Int get() = playing.get()
+    /**
+     * Anzahl der Clients, die gerade tatsaechlich Audio empfangen.
+     *
+     * Bewusst gezaehlt statt mitgefuehrt. Ein eigener Zaehler muss bei jedem
+     * Zustandswechsel exakt einmal erhoeht und exakt einmal gesenkt werden --
+     * und genau das ist in 2.3 schiefgegangen: unter Last stand hier -219.
+     * Eine Zaehlung ueber die Liste kann per Konstruktion nicht driften und
+     * niemals negativ werden. Bei einer Handvoll Verbindungen kostet sie nichts.
+     */
+    val playingClients: Int get() = connections.count { it.isPlaying }
 
     /** Summe der versendeten RTP-Nutzlast in Byte. */
     val totalBytesSent: Long get() = bytesSent.get()
@@ -81,9 +87,10 @@ class RtspServer(
         reaperThread?.join(2000)
         acceptThread = null
         reaperThread = null
-        connections.forEach { it.close() }
+        // Beim Abbau nicht auf fremde Sender-Threads warten -- die beenden sich
+        // selbst, sobald ihre Warteschlange zu ist.
+        connections.forEach { it.close(joinSender = false) }
         connections.clear()
-        playing.set(0)
     }
 
     private fun acceptLoop() {
@@ -99,7 +106,56 @@ class RtspServer(
             }
             val connection = Connection(socket)
             connections.add(connection)
+            enforceConnectionLimits(connection)
             Thread(connection::run, "birdmic-client-${socket.port}").start()
+        }
+    }
+
+    /**
+     * Begrenzt die Zahl offener Verbindungen, noch bevor daraus Sitzungen
+     * werden.
+     *
+     * Die Grenze in 2.3 griff erst bei PLAY. Bis dahin hatte jeder Client
+     * bereits Verbindung, RTSP-Handschlag und SETUP hinter sich -- und SETUP
+     * belegt zwei UDP-Ports. Bei 250 Verbindungen sind das 500 Sockets, lange
+     * bevor irgendeine Obergrenze auch nur nachgesehen hat.
+     *
+     * Der Spielraum ([CONNECTION_HEADROOM]) ist Absicht: ein Client, der eine
+     * Steuerverbindung offen haelt und daneben eine zweite aufbaut, soll nicht
+     * sofort abgeraeumt werden.
+     */
+    private fun enforceConnectionLimits(fresh: Connection) {
+        if (maxClientsPerIp > 0) {
+            val sameIp = connections.filter { it !== fresh && it.address() == fresh.address() }
+            dropOldest(sameIp, maxClientsPerIp * CONNECTION_HEADROOM - 1, "Verbindungen je Adresse")
+        }
+        if (maxClients > 0) {
+            val others = connections.filter { it !== fresh }
+            dropOldest(others, maxClients * CONNECTION_HEADROOM - 1, "Verbindungen insgesamt")
+        }
+    }
+
+    /**
+     * Trennt die aeltesten Verbindungen, bis nur noch [keep] uebrig sind.
+     *
+     * **Ohne auf deren Threads zu warten.** Genau das war der zweite Fehler in
+     * 2.3: Das Abraeumen lief mit `join(1000)` je Opfer auf dem Thread des
+     * neuen Clients. Bei hundert Opfern stand der neue Client bis zu hundert
+     * Sekunden still -- und galt in dieser Zeit selbst schon als spielend, also
+     * als Opfer fuer den naechsten. Unter Last hat sich die Grenze damit selbst
+     * ausgehebelt. Ein geschlossener Socket und eine geschlossene Warteschlange
+     * genuegen; die betroffenen Threads beenden sich von allein.
+     */
+    private fun dropOldest(candidates: List<Connection>, keep: Int, reason: String) {
+        if (keep < 0 || candidates.size <= keep) return
+        val doomed = candidates.sortedBy { it.startedAt }.take(candidates.size - keep)
+        for (connection in doomed) {
+            Log.w(TAG, "Grenze $reason erreicht, trenne ${connection.address()}")
+            onEvent?.invoke(
+                EventLog.Kind.WARNING,
+                "Grenze $reason erreicht – älteren Empfänger ${connection.address()} getrennt",
+            )
+            connection.close(joinSender = false)
         }
     }
 
@@ -124,7 +180,8 @@ class RtspServer(
                         EventLog.Kind.WARNING,
                         "UDP-Empfänger ${connection.address()} ohne Lebenszeichen verworfen",
                     )
-                    connection.close()
+                    // Fremder Thread: nicht warten.
+                    connection.close(joinSender = false)
                 }
             }
         }
@@ -144,7 +201,7 @@ class RtspServer(
         // Thread, Sender-Thread, Reaper und server.stop(). Ein einfaches
         // Boolean wuerde den Client-Zaehler doppelt herunterzaehlen.
         private val playingFlag = java.util.concurrent.atomic.AtomicBoolean(false)
-        private val isPlaying: Boolean get() = playingFlag.get()
+        val isPlaying: Boolean get() = playingFlag.get()
 
         /** Fuer die Frage, welche Session bei Ueberschreitung des Limits weichen muss. */
         val startedAt: Long = System.currentTimeMillis()
@@ -155,7 +212,7 @@ class RtspServer(
         // Empfaenger niemals den Aufnahme-Thread anhaelt.
         private val packetBytes = audio.framesPerPacket * audio.channels * 2
         private val queue = PacketQueue(QUEUE_CAPACITY, packetBytes)
-        private var senderThread: Thread? = null
+        @Volatile private var senderThread: Thread? = null
 
         /** Wie viele Pakete dieser Client verpasst hat, weil er zu langsam war. */
         val droppedPackets: Long get() = queue.dropped
@@ -334,7 +391,7 @@ class RtspServer(
                 "SETUP" -> handleSetup(request, cseq)
                 "PLAY" -> handlePlay(cseq, request.uri)
                 "PAUSE" -> {
-                    stopStreaming()
+                    stopStreaming(joinSender = true)
                     respond(cseq, 200, "OK", mapOf("Session" to sessionId))
                 }
                 "TEARDOWN" -> {
@@ -398,8 +455,12 @@ class RtspServer(
                 ),
             )
             if (playingFlag.compareAndSet(false, true)) {
-                enforceLimits()
-                playing.incrementAndGet()
+                // Reihenfolge ist hier wesentlich: erst vollstaendig lebendig
+                // werden, dann aufraeumen. In 2.3 stand das Abraeumen davor --
+                // dadurch galt diese Verbindung bereits als spielend, waehrend
+                // sie noch gar keinen Sender hatte. Sie tauchte in der Liste
+                // auf, lieferte aber keinen Ton, und ein anderer Thread konnte
+                // sie in diesem Zwischenzustand abraeumen.
                 senderThread = Thread(::sendLoop, "birdmic-send-${address()}").apply { start() }
                 audio.addSink(this)
                 Log.i(TAG, "Client ${address()} spielt")
@@ -407,39 +468,29 @@ class RtspServer(
                     EventLog.Kind.CLIENT_IN,
                     "Empfänger ${address()} verbunden (${if (usesUdp) "UDP" else "TCP"})",
                 )
+                enforceSessionLimits()
             }
         }
 
         /**
-         * Setzt die Obergrenzen durch, sobald ein neuer Empfaenger zu spielen
-         * beginnt. Der Neue gewinnt, die aeltesten weichen.
+         * Setzt die Obergrenzen fuer *spielende* Sitzungen durch. Der Neue
+         * gewinnt, die aeltesten weichen.
          *
          * Bewusst so herum: laeuft auf der Gegenseite ein Reconnect-Fehler und
          * startet dutzende Prozesse, sind die alten die haengenden. Wuerde man
          * stattdessen den Neuen abweisen, blockierte eine tote Session den
          * Platz dauerhaft und der Stream kaeme nie zurueck.
          */
-        private fun enforceLimits() {
+        private fun enforceSessionLimits() {
             if (maxClientsPerIp > 0) {
-                val sameIp = connections.filter { it !== this && it.isPlaying && it.address() == address() }
+                val sameIp = connections.filter {
+                    it !== this && it.isPlaying && it.address() == address()
+                }
                 dropOldest(sameIp, maxClientsPerIp - 1, "je Adresse")
             }
             if (maxClients > 0) {
                 val others = connections.filter { it !== this && it.isPlaying }
                 dropOldest(others, maxClients - 1, "insgesamt")
-            }
-        }
-
-        private fun dropOldest(candidates: List<Connection>, keep: Int, reason: String) {
-            if (candidates.size <= keep) return
-            val doomed = candidates.sortedBy { it.startedAt }.take(candidates.size - keep)
-            for (connection in doomed) {
-                Log.w(TAG, "Limit $reason erreicht, trenne ${connection.address()}")
-                onEvent?.invoke(
-                    EventLog.Kind.WARNING,
-                    "Grenze $reason erreicht – älteren Empfänger ${connection.address()} getrennt",
-                )
-                connection.close()
             }
         }
 
@@ -485,21 +536,26 @@ class RtspServer(
 
         private fun ssrcHex() = sender?.let { String.format("%08X", it.ssrc) } ?: "00000000"
 
-        private fun stopStreaming() {
+        /**
+         * [joinSender] nur aus dem eigenen Verbindungs-Thread setzen. Aus einem
+         * fremden Thread darf hier niemals gewartet werden -- siehe [dropOldest].
+         */
+        private fun stopStreaming(joinSender: Boolean) {
             // compareAndSet stellt sicher, dass genau ein Aufrufer aufraeumt,
             // egal wie viele Threads gleichzeitig close() rufen.
             if (!playingFlag.compareAndSet(true, false)) return
-            // Erst abmelden, damit nichts mehr nachlaeuft, dann den
-            // Sender-Thread aus seinem Warten holen.
+            // Erst abmelden, damit nichts mehr nachlaeuft, dann die
+            // Warteschlange schliessen -- daran endet der Sender-Thread.
             audio.removeSink(this)
-            playing.decrementAndGet()
             queue.close()
-            senderThread?.let { if (it !== Thread.currentThread()) it.join(1000) }
-            senderThread = null
+            if (joinSender) {
+                senderThread?.let { if (it !== Thread.currentThread()) it.join(1000) }
+                senderThread = null
+            }
         }
 
-        fun close() {
-            stopStreaming()
+        fun close(joinSender: Boolean = true) {
+            stopStreaming(joinSender)
             sender?.close()
             sender = null
             runCatching { socket.close() }
@@ -575,5 +631,12 @@ class RtspServer(
 
         /** Rund 5 s durchgehendes Verwerfen -- danach ist der Client hoffnungslos. */
         private const val DROP_LIMIT = 250L
+
+        /**
+         * Wie viele offene Verbindungen je erlaubtem Stream zugelassen werden,
+         * bevor die aelteste weicht. Zwei, damit ein Client eine Steuer-
+         * verbindung halten und daneben eine neue aufbauen kann.
+         */
+        private const val CONNECTION_HEADROOM = 2
     }
 }

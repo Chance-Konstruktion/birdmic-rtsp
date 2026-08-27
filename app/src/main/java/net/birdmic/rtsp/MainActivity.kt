@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
 
     private var cachedIp: String? = null
     private var ipCachedAt = 0L
-    private var lastLogSize = -1
+    private var lastLogFingerprint = ""
 
     private val handler = Handler(Looper.getMainLooper())
     private val refresh = object : Runnable {
@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         applyNightMode()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        log = EventLog(this)
+        log = EventLog.of(this)
 
         bindViews()
         loadSettingsIntoFields()
@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.battery).setOnClickListener { openBatterySettings() }
         findViewById<Button>(R.id.clear_log).setOnClickListener {
             log.clear()
-            lastLogSize = -1
+            lastLogFingerprint = ""
             renderLog()
         }
         findViewById<Button>(R.id.export_log).setOnClickListener {
@@ -270,7 +270,7 @@ class MainActivity : AppCompatActivity() {
         // an- oder abgesteckt worden sein.
         setupDeviceSpinner()
         spectrogram.sampleRate = prefs.sampleRate
-        lastLogSize = -1
+        lastLogFingerprint = ""
         handler.post(refresh)
     }
 
@@ -519,9 +519,12 @@ class MainActivity : AppCompatActivity() {
     private fun renderLog() {
         val entries = log.recent(LOG_LINES)
         // Nur neu setzen, wenn sich etwas geaendert hat -- sonst springt die
-        // Textauswahl bei jeder Aktualisierung weg.
-        if (entries.size == lastLogSize) return
-        lastLogSize = entries.size
+        // Textauswahl bei jeder Aktualisierung weg. Die Groesse allein genuegt
+        // dafuer nicht: eine wiederholte Meldung erhoeht nur ihren Zaehler.
+        val fingerprint = entries.firstOrNull()
+            ?.let { "${entries.size}:${it.lastTimestamp}:${it.repeats}" } ?: "0"
+        if (fingerprint == lastLogFingerprint) return
+        lastLogFingerprint = fingerprint
         logView.text = if (entries.isEmpty()) {
             getString(R.string.log_empty)
         } else {

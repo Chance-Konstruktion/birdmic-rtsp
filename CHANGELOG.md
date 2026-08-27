@@ -2,6 +2,76 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## 2.5 — Die Grenze aus 2.3 hat nicht gehalten
+
+Am 27.08.2026 standen **250 Empfänger derselben Adresse** im Stream, bei einer
+eingestellten Grenze von 4 insgesamt und 2 je Adresse. Der Empfängerzähler stand
+auf **-219**. Beides waren Fehler in dieser App, nicht auf der Gegenseite.
+
+### Was tatsächlich schiefging
+
+Der Auslöser lag beim Empfänger: BirdNET-Pi konnte seine eigenen ffmpeg-Prozesse
+nicht beenden (`ERROR:systemctl:kill PID … Operation not permitted`) und startete
+laufend neue, während das Telefon unerreichbar war. Das ist der Grund, warum
+überhaupt hunderte Verbindungen auf einmal ankamen.
+
+Abfangen sollte das die Obergrenze aus 2.3. Sie tat es nicht, aus drei Gründen:
+
+1. **Die Grenze griff zu spät.** Geprüft wurde erst bei `PLAY`. Bis dahin hatte
+   jeder Client Verbindung, Handschlag und `SETUP` hinter sich — und `SETUP`
+   belegt zwei UDP-Ports. 250 Verbindungen sind 500 Sockets, bevor irgendeine
+   Grenze auch nur nachgesehen hat.
+
+2. **Das Abräumen blockierte den, der es auslöste.** Es lief mit `join(1000)`
+   je Opfer auf dem Thread des neuen Clients. Bei hundert Opfern stand der neue
+   Client bis zu hundert Sekunden still — und galt in dieser Zeit selbst schon
+   als spielend, also als Opfer für den nächsten. Unter Last hat sich die Grenze
+   damit selbst ausgehebelt.
+
+3. **Der Zähler hatte ein Zeitfenster.** Zwischen dem Setzen der Zustandsmarke
+   und dem Hochzählen lag genau dieser blockierende Aufruf. Wer in diesem Fenster
+   abgeräumt wurde, zählte herunter, ohne je hochgezählt zu haben. 304-mal, bis
+   der Zähler bei -219 stand.
+
+Bestätigt wird das durch die Datenmenge: 58,5 GB in 7,7 Tagen sind **ein**
+Stream, nicht 85. Die gelisteten Empfänger waren im Zwischenzustand
+steckengeblieben — als spielend geführt, aber ohne Sender.
+
+### Behoben
+
+- **Der Zähler ist weg.** Die Empfängerzahl wird aus den Zustandsmarken
+  gezählt statt mitgeführt. Eine abgeleitete Zählung kann per Konstruktion nicht
+  driften und niemals negativ werden.
+- **Grenze schon beim Verbindungsaufbau**, nicht erst bei `PLAY`. Zugelassen
+  wird das Doppelte der Streamgrenze an offenen Verbindungen — genug, damit ein
+  Client eine Steuerverbindung halten und daneben eine neue aufbauen kann.
+- **Abräumen wartet nicht mehr.** Ein geschlossener Socket und eine geschlossene
+  Warteschlange genügen; die betroffenen Threads beenden sich von allein.
+- **Reihenfolge bei `PLAY` umgedreht:** erst vollständig lebendig werden (Sender,
+  Sink, Logbuch), dann aufräumen. Der Zwischenzustand „gilt als spielend, liefert
+  aber nichts" existiert nicht mehr.
+
+### Ebenfalls behoben: das Logbuch zeigte sieben Tage nichts
+
+Dienst und Oberfläche hatten **je eine eigene Logbuch-Instanz**. Beide schrieben
+in dieselbe Datei, aber jede hielt ihre eigene Liste im Speicher. Die Anzeige und
+der Export zeigten damit den Stand vom Start der Oberfläche — im Bericht vom
+27.08. war der letzte Eintrag sieben Tage alt, während der Dienst munter
+weiterschrieb. Jetzt gibt es genau eine Instanz für den ganzen Prozess.
+
+- **Gleiche Meldung direkt hintereinander wird zusammengefasst** (`[250×,
+  zuletzt 15:29:41]`). Ein Empfänger in einer Reconnect-Schleife hat sonst das
+  gesamte Logbuch überschrieben — und der Fehler davor, den man sehen wollte,
+  war weg.
+- Die Empfängerliste im Bericht fasst gleiche Adressen zusammen.
+
+### Neu
+
+- **5 weitere Unit-Tests** (jetzt 51), die genau dieses Fehlermuster festhalten:
+  dass eine abgeleitete Zählung unter 16 Threads nie negativ wird, dass die
+  ältesten weichen und nicht die neuesten, und dass unterhalb der Grenze niemand
+  getrennt wird.
+
 ## 2.4 — Ferndiagnose
 
 Beides dient demselben Zweck: herausfinden, was passiert ist, ohne danebenzustehen.

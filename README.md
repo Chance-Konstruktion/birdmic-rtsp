@@ -187,7 +187,7 @@ Verhaltensänderungen — kein Umbau.
 
 ### Fertige APK
 
-`BirdMic-2.4.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
+`BirdMic-2.5.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
 Debug-Schlüssel (APK Signature Scheme v2).
 
 > `BirdMic-1.2.apk` liegt als **Rückfallebene** daneben. Version 2.0 bringt viele
@@ -202,7 +202,7 @@ Debug-Schlüssel (APK Signature Scheme v2).
 Oder per ADB:
 
 ```bash
-adb install -r BirdMic-2.4.apk
+adb install -r BirdMic-2.5.apk
 ```
 
 > Debug-signiert reicht für ein Gerät im eigenen WLAN. Für den Play Store
@@ -292,7 +292,7 @@ umstellen, neu starten.**
 | **Weboberfläche** | aus | Nur-Lese-Ansicht im Browser. Siehe unten. |
 | **Port der Weboberfläche** | 8080 | Muss ein anderer sein als der RTSP-Port. |
 | **UDP-Timeout** | 0 (aus) | Sekunden ohne Lebenszeichen, nach denen eine UDP-Session verworfen wird. Betrifft **nur** UDP; TCP-Verbindungen werden über den Verbindungsabbruch erkannt. |
-| **Max. Empfänger** | 4 | Obergrenze gleichzeitiger Empfänger, 0 = unbegrenzt. Bei Überschreitung weicht der älteste. |
+| **Max. Empfänger** | 4 | Obergrenze gleichzeitiger Empfänger, 0 = unbegrenzt. Bei Überschreitung weicht der älteste. Ab 2.5 zusätzlich beim Verbindungsaufbau geprüft, nicht erst bei `PLAY`. |
 | **Max. je Adresse** | 2 | Dasselbe pro Absender-IP. Schützt vor Empfängern, die sich bei einem Verbindungsfehler vervielfachen. |
 | **Zugangsschutz** | aus | Benutzername + Passwort für Digest-Auth. Beide leer = kein Schutz. |
 | **Autostart** | ein | Startet nach Neustart wieder — aber nur, wenn der Stream beim Ausschalten lief. |
@@ -589,7 +589,7 @@ Dateien.
 ./gradlew testReleaseUnitTest lintRelease
 ```
 
-**46 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
+**51 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
 
 | Testklasse | Prüft |
 | --- | --- |
@@ -599,6 +599,7 @@ Dateien.
 | `DigestAuthTest` | Gültige und ungültige Anmeldung, Methodenbindung, fremde Nonce, Zufälligkeit |
 | `PacketQueueTest` | Reihenfolge, Verwerfen des ältesten Pakets, garantiert blockierungsfreies `offer` |
 | `WebServerTest` | Läuft gegen echte Sockets: Routen, 404/405, HEAD ohne Rumpf, Digest-Ablauf, Überlängen, Port wirklich freigegeben |
+| `ConnectionLimitTest` | Hält den Vorfall vom 27.08.2026 fest: abgeleitete Empfängerzählung wird unter 16 Threads nie negativ, die ältesten weichen statt der neuesten |
 
 Lint muss fehlerfrei durchlaufen, sonst bricht der Build ab. Es fängt vor allem
 API-Level-Fehler ab, die der Kotlin-Compiler nicht sieht — ein Aufruf, den es
@@ -917,8 +918,8 @@ Uhren gehen wirklich auseinander.
 
 ## Bekannte Grenzen
 
-- **Version 2.4 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
-  Teile sind durch 46 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
+- **Version 2.5 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
+  Teile sind durch 51 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
   Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
   liegt sie als Rückfallebene bei.
 - **Android 8 und 9 sind ungetestet.** `minSdk` ist 26, und die

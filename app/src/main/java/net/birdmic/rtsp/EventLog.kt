@@ -13,16 +13,35 @@ import java.util.Locale
  * Der Neustart-Zaehler sagt nur, *dass* etwas passiert ist. Fuer die Frage,
  * welcher Energiesparmechanismus um drei Uhr nachts zuschlaegt, braucht man den
  * Zeitpunkt. Die letzten [CAPACITY] Eintraege ueberleben einen App-Neustart.
+ *
+ * **Es darf nur eine Instanz geben** -- deshalb [of] statt des Konstruktors.
+ * Bis 2.4 hatten Dienst und Oberflaeche je eine eigene: beide schrieben in
+ * dieselbe Datei, aber jede hielt ihre eigene Liste im Speicher. Die Anzeige
+ * und der Export zeigten damit den Stand vom Start der Oberflaeche -- in einem
+ * Fall sieben Tage alt, waehrend der Dienst munter weiterschrieb.
  */
-class EventLog(context: Context) {
+class EventLog private constructor(context: Context) {
 
     enum class Kind { START, STOP, CLIENT_IN, CLIENT_OUT, RECOVER, WARNING, ERROR }
 
-    data class Entry(val timestamp: Long, val kind: Kind, val message: String) {
-        fun format(): String = "${TIME_FORMAT.format(Date(timestamp))}  ${icon()} $message"
+    data class Entry(
+        val timestamp: Long,
+        val kind: Kind,
+        val message: String,
+        /** Wie oft dieselbe Meldung unmittelbar hintereinander kam. */
+        val repeats: Int = 1,
+        /** Zeitpunkt der letzten Wiederholung. */
+        val lastTimestamp: Long = timestamp,
+    ) {
+        fun format(): String =
+            "${TIME_FORMAT.format(Date(timestamp))}  ${icon()} $message${repeatSuffix(TIME_FORMAT)}"
 
         /** Zeitstempel mit Jahr -- fuer den Export, wo Eintraege Wochen alt sein koennen. */
-        fun formatLong(): String = "${FULL_FORMAT.format(Date(timestamp))}  ${icon()} $message"
+        fun formatLong(): String =
+            "${FULL_FORMAT.format(Date(timestamp))}  ${icon()} $message${repeatSuffix(FULL_FORMAT)}"
+
+        private fun repeatSuffix(format: SimpleDateFormat): String =
+            if (repeats > 1) "  [${repeats}×, zuletzt ${format.format(Date(lastTimestamp))}]" else ""
 
         fun icon() = when (kind) {
             Kind.START -> "▶"
@@ -42,9 +61,24 @@ class EventLog(context: Context) {
         load()
     }
 
+    /**
+     * Gleiche Meldung direkt hintereinander wird zusammengefasst, statt 100
+     * Plaetze zu belegen.
+     *
+     * Nicht kosmetisch: Ein Empfaenger, der sich in einer Schleife neu
+     * verbindet, hat schon einmal das gesamte Logbuch ueberschrieben -- der
+     * Fehler davor, den man haette sehen wollen, war dann weg.
+     */
     @Synchronized
     fun add(kind: Kind, message: String) {
-        entries.addLast(Entry(System.currentTimeMillis(), kind, message))
+        val now = System.currentTimeMillis()
+        val last = entries.lastOrNull()
+        if (last != null && last.kind == kind && last.message == message) {
+            entries.removeLast()
+            entries.addLast(last.copy(repeats = last.repeats + 1, lastTimestamp = now))
+        } else {
+            entries.addLast(Entry(now, kind, message))
+        }
         while (entries.size > CAPACITY) entries.removeFirst()
         save()
     }
@@ -70,11 +104,14 @@ class EventLog(context: Context) {
             val array = JSONArray(raw)
             for (i in 0 until array.length()) {
                 val item = array.getJSONObject(i)
+                val timestamp = item.getLong("t")
                 entries.addLast(
                     Entry(
-                        item.getLong("t"),
+                        timestamp,
                         Kind.valueOf(item.getString("k")),
                         item.getString("m"),
+                        item.optInt("n", 1),
+                        item.optLong("l", timestamp),
                     ),
                 )
             }
@@ -84,12 +121,14 @@ class EventLog(context: Context) {
     private fun save() {
         val array = JSONArray()
         for (entry in entries) {
-            array.put(
-                JSONObject()
-                    .put("t", entry.timestamp)
-                    .put("k", entry.kind.name)
-                    .put("m", entry.message),
-            )
+            val item = JSONObject()
+                .put("t", entry.timestamp)
+                .put("k", entry.kind.name)
+                .put("m", entry.message)
+            if (entry.repeats > 1) {
+                item.put("n", entry.repeats).put("l", entry.lastTimestamp)
+            }
+            array.put(item)
         }
         sp.edit().putString(KEY, array.toString()).apply()
     }
@@ -99,5 +138,13 @@ class EventLog(context: Context) {
         private const val KEY = "entries"
         private val TIME_FORMAT = SimpleDateFormat("dd.MM. HH:mm:ss", Locale.GERMANY)
         private val FULL_FORMAT = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.GERMANY)
+
+        @Volatile private var instance: EventLog? = null
+
+        /** Die eine Instanz fuer den gesamten Prozess. */
+        fun of(context: Context): EventLog =
+            instance ?: synchronized(this) {
+                instance ?: EventLog(context.applicationContext).also { instance = it }
+            }
     }
 }

@@ -58,7 +58,11 @@ object Diagnostics {
                 line("Läuft seit:  ${formatDuration(state.uptimeSeconds)}")
                 line("Adresse:     ${state.url}")
                 line("Empfänger:   ${state.clients}")
-                for (name in state.clientNames) line("             $name")
+                // Gleiche Eintraege zusammenfassen: bei einem Empfaenger, der
+                // sich vervielfacht, sind 85 identische Zeilen keine Information.
+                for ((name, count) in state.clientNames.groupingBy { it }.eachCount()) {
+                    line("             $name${if (count > 1) "  ×$count" else ""}")
+                }
                 line("Gesendet:    ${state.bytesSent} Bytes")
                 line("Quelle aktiv:${" " + state.source}")
                 state.activeMicrophone?.let { line("Mikrofon:    $it") }

@@ -50,7 +50,7 @@ class RtspService : Service() {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
-        log = EventLog(this)
+        log = EventLog.of(this)
         State.log = log
         createChannel()
     }
