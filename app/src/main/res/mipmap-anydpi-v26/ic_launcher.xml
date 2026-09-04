@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <foreground android:drawable="@mipmap/ic_launcher_logo" />
+    <!-- Fuer die einfarbigen Symbole ab Android 13: dort faerbt das System
+         das Icon selbst ein, ein farbiges Logo waere dafuer unbrauchbar.
+         Der alte Vektor - eine schlichte Mikrofonsilhouette - ist genau
+         das, was diese Ebene braucht. -->
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>

@@ -188,17 +188,22 @@ Verhaltensänderungen — kein Umbau.
 
 ### Fertige APK
 
-`BirdMic-2.7.apk` im Wurzelverzeichnis ist ein Release-Build, signiert mit dem
-Debug-Schlüssel (APK Signature Scheme v2).
+Die fertige APK steht bei den
+[Releases](https://gitlab.schanz.ipv64.net/chance-konstruktion/birdmic-rtsp/-/releases).
+Direkt herunterladen:
 
-Im Wurzelverzeichnis liegen nur zwei APKs: die aktuelle und die erprobte
-Rückfallebene. Ältere Fassungen stehen unter [`archiv/`](archiv/) mit einer
-Übersicht, was sie jeweils bringen.
+```bash
+curl -LO https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/2.8/BirdMic-2.8.apk
+```
 
-> `BirdMic-1.2.apk` liegt als **Rückfallebene** daneben. Version 2.0 bringt viele
-> neue Funktionen, die nicht auf einem Gerät im Dauerbetrieb erprobt sind — alle
-> Neuerungen sind abschaltbar und stehen im Auslieferungszustand auf „aus", so
-> dass 2.0 sich wie 1.2 verhält. Falls doch etwas klemmt, ist 1.2 der Weg zurück.
+Es ist ein Release-Build, signiert mit dem Debug-Schlüssel (APK Signature
+Scheme v2).
+
+> `BirdMic-1.2.apk` liegt im Wurzelverzeichnis als **Rückfallebene**: die einzige
+> Fassung, die über Wochen im Dauerbetrieb gelaufen ist. Alle Neuerungen seither
+> sind abschaltbar und stehen im Auslieferungszustand auf „aus", so dass sich die
+> aktuelle Version wie 1.2 verhält. Falls doch etwas klemmt, ist 1.2 der Weg
+> zurück. Ältere Fassungen stehen unter [`archiv/`](archiv/).
 
 1. APK aufs Telefon kopieren und antippen
 2. „Installation aus unbekannten Quellen" für den Dateimanager erlauben
@@ -207,7 +212,7 @@ Rückfallebene. Ältere Fassungen stehen unter [`archiv/`](archiv/) mit einer
 Oder per ADB:
 
 ```bash
-adb install -r BirdMic-2.7.apk
+adb install -r BirdMic-2.8.apk
 ```
 
 > Debug-signiert reicht für ein Gerät im eigenen WLAN. Für den Play Store
@@ -729,7 +734,7 @@ installiert" ab, ohne zu sagen warum.
 Alle APKs dieses Projekts sind mit demselben Debug-Schlüssel signiert:
 
 ```bash
-apksigner verify --print-certs BirdMic-2.7.apk
+apksigner verify --print-certs BirdMic-2.8.apk
 ```
 
 ```
@@ -748,7 +753,7 @@ Seit 2.7 liegen die fertigen APKs im **Paketregister** des Projekts, nicht mehr
 im Repository. Der Verweis in der App zeigt dorthin:
 
 ```
-https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/2.7/BirdMic-2.7.apk
+https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/2.8/BirdMic-2.8.apk
 ```
 
 Der Grund ist Größe: Eine eingecheckte APK bleibt für immer in der Historie —
@@ -766,10 +771,10 @@ steht zu jeder Version die APK und was sie bringt.
 
 ```json
 {
-  "versionCode": 11,
-  "versionName": "2.7",
-  "apk": "BirdMic-2.7.apk",
-  "notes": "APKs kommen jetzt aus dem Paketregister."
+  "versionCode": 12,
+  "versionName": "2.8",
+  "apk": "BirdMic-2.8.apk",
+  "notes": "Das Logo des Projekts ist jetzt das App-Icon."
 }
 ```
 
@@ -780,7 +785,7 @@ Fehler eine falsche Meldung bei grüner Pipeline.
 Veröffentlicht wird über einen Tag — nie durch einen Push:
 
 ```bash
-git tag v2.7 && git push origin v2.7
+git tag v2.8 && git push origin v2.8
 ```
 
 Der Job `veroeffentlichen` läuft erst, wenn **alle** Tests und Lint durch sind,
@@ -1012,7 +1017,7 @@ Uhren gehen wirklich auseinander.
 
 ## Bekannte Grenzen
 
-- **Version 2.7 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
+- **Version 2.8 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
   Teile sind durch 60 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
   Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
   liegt sie als Rückfallebene bei.

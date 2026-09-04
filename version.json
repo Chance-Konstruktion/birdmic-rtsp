@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "2.7",
-  "apk": "BirdMic-2.7.apk",
-  "notes": "APKs kommen jetzt aus dem Paketregister statt aus dem Repository."
+  "versionCode": 12,
+  "versionName": "2.8",
+  "apk": "BirdMic-2.8.apk",
+  "notes": "Das Logo des Projekts ist jetzt das App-Icon."
 }

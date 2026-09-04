@@ -81,16 +81,20 @@ versionsdatei:
       if daten.get("versionName") != name:
           fehler.append(f"versionName: version.json {daten.get('versionName')!r} != build.gradle.kts {name!r}")
 
+      # Die APK liegt seit 2.8 nicht mehr im Projekt, sondern im
+      # Paketregister. Geprueft wird deshalb der Name, nicht die Datei:
+      # er geht als Pfadteil in die Downloadadresse ein.
       apk = daten.get("apk", "")
-      if not pathlib.Path(apk).is_file():
-          fehler.append(f"APK fehlt im Projekt: {apk}")
+      erwartet = f"BirdMic-{name}.apk"
+      if apk != erwartet:
+          fehler.append(f"apk: {apk!r} != erwartet {erwartet!r}")
 
       if fehler:
           print("version.json passt nicht zum Build:")
           for f in fehler:
               print("  -", f)
           sys.exit(1)
-      print(f"version.json stimmt: {name} (Build {code}), {apk} liegt bereit")
+      print(f"version.json stimmt: {name} (Build {code}), Paket {apk}")
       PRUEFUNG
 
 # --------------------------------------------------------------------------

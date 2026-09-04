@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#2E5B3E</color>
+    <!-- Aus logo.png abgetastet: die Innenflaeche des Kreises. Sie steht
+         hinter dem Motiv, wenn der Startbildschirm eine Maske anlegt, die
+         groesser ist als das Logo, etwa ein Quadrat mit runden Ecken. -->
+    <color name="ic_launcher_background">#012455</color>
 </resources>

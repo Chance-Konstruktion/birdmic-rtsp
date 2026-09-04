@@ -2,6 +2,47 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## 2.8 — Das Logo wird zum App-Icon
+
+Der Eisvogel mit Mikrofon aus `logo.png` ist jetzt das Symbol auf dem
+Startbildschirm. Bisher stand dort eine selbstgezeichnete Mikrofonsilhouette.
+
+Zwei Dinge waren dabei nicht offensichtlich:
+
+- **`logo.png` hat keinen sauberen transparenten Rand.** Außerhalb des Kreises
+  liegt halbdurchsichtiges Weiß. Unbehandelt gäbe das auf dunklen
+  Startbildschirmen einen hellen Schleier ums Icon. Entfernt wird es durch
+  Füllen von den Ecken aus — eine Farbschwelle hätte auch die weißen Flächen
+  *innerhalb* gefressen: Mikrofonkorb und Vogelbrust.
+- **Android maskiert adaptive Icons.** Garantiert sichtbar sind nur die inneren
+  66 von 108 Einheiten. Das Motiv sitzt deshalb auf 72/108 — unter einer
+  Kreismaske liegt der Logoring knapp innen, und der Schriftzug bleibt in jedem
+  Fall stehen.
+
+Dazu eine **einfarbige Ebene** für die getönten Symbole ab Android 13: Dort
+färbt das System das Icon selbst ein, ein farbiges Logo wäre dafür unbrauchbar.
+Diese Ebene ist der bisherige Vektor — eine schlichte Mikrofonsilhouette, genau
+das, was dort gebraucht wird. Der Lint-Hinweis `MonochromeLauncherIcon` ist
+damit erledigt.
+
+`werkzeuge/icons.py` erzeugt alle Bilddateien neu aus `logo.png`. Es läuft
+**nicht** im Bau — die fertigen Dateien liegen im Projekt, das Skript ist der
+nachvollziehbare Weg dorthin.
+
+### Keine APK mehr im Projekt
+
+Ab dieser Version wird die APK nur noch ins Paketregister veröffentlicht. Im
+Wurzelverzeichnis steht allein `BirdMic-1.2.apk` als erprobte Rückfallebene;
+alles andere liegt unter `archiv/`.
+
+**Wer noch 2.6 hat, muss einmal von Hand nachziehen.** 2.6 sucht ausschließlich
+im Repository, und dort liegt nichts Neues mehr. Ab 2.7 kommt der Verweis aus
+dem Paketregister und funktioniert weiter.
+
+Der CI-Job `versionsdatei` prüft entsprechend nicht mehr, ob die Datei im
+Projekt liegt, sondern ob ihr Name zur Version passt — er geht als Pfadteil in
+die Downloadadresse ein.
+
 ## 2.7 — APKs kommen aus dem Paketregister
 
 Bis 2.6 lag jede fertige APK im Repository. Das war der kürzeste Weg zu einer
