@@ -1,6 +1,7 @@
 package net.birdmic.rtsp
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -25,8 +26,11 @@ class UpdateCheckTest {
         assertEquals("2.6", release.versionName)
         assertEquals("Neues", release.notes)
         assertTrue(release.downloadUrl.startsWith("https://"))
-        // Adresse im Paketregister: .../birdmic/<version>/<datei>
-        assertTrue(release.downloadUrl.endsWith("/birdmic/2.6/BirdMic-2.6.apk"))
+        // Adresse eines Release-Anhangs: .../releases/download/v<version>/<datei>
+        assertEquals(
+            "https://github.com/chance-konstruktion/birdmic-rtsp/releases/download/v2.6/BirdMic-2.6.apk",
+            release.downloadUrl,
+        )
     }
 
     @Test
@@ -96,7 +100,7 @@ class UpdateCheckTest {
     fun `Klartext-HTTP wird nicht abgefragt`() {
         // Ueber unverschluesseltes HTTP koennte jeder im Netz eine eigene
         // Antwort unterschieben. Kein Netzzugriff noetig: die Pruefung greift davor.
-        assertNull(UpdateCheck.fetch("http://gitlab.schanz.ipv64.net/x/version.json"))
+        assertNull(UpdateCheck.fetch("http://raw.githubusercontent.com/x/version.json"))
         assertNull(UpdateCheck.fetch("ftp://example.invalid/version.json"))
         assertNull(UpdateCheck.fetch("version.json"))
     }
@@ -104,5 +108,30 @@ class UpdateCheckTest {
     @Test
     fun `die eingebaute Adresse ist verschluesselt`() {
         assertTrue(UpdateCheck.VERSION_URL.startsWith("https://"))
+    }
+
+    @Test
+    fun `keine Adresse zeigt auf den privaten Heimserver`() {
+        // Die Tuer, die diese Aenderung festhaelt. Solange die APK oeffentlich
+        // liegt, darf KEINE eingebaute Adresse auf die private Instanz zeigen:
+        // Sonst klopft jedes fremde Telefon regelmaessig an einen Heimserver,
+        // und dessen Adresse stuende in jeder Installation.
+        //
+        // Geprueft wird die Adresse, die die App wirklich abfragt, UND die
+        // Adresse, die hinter dem Knopf liegt -- beide kamen aus derselben
+        // Quelle und muessen beide umgezogen sein.
+        val release = UpdateCheck.parse(valid)
+        assertNotNull(release)
+        for (adresse in listOf(UpdateCheck.VERSION_URL, release!!.downloadUrl)) {
+            assertFalse(
+                "Adresse zeigt auf die private Instanz: $adresse",
+                adresse.contains("schanz.ipv64.net"),
+            )
+            assertTrue(
+                "Adresse gehoert nicht zum oeffentlichen Spiegel: $adresse",
+                adresse.startsWith("https://github.com/") ||
+                    adresse.startsWith("https://raw.githubusercontent.com/"),
+            )
+        }
     }
 }
