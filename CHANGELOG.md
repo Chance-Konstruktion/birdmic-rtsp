@@ -33,7 +33,9 @@ nachvollziehbare Weg dorthin.
 
 Ab dieser Version wird die APK nur noch ins Paketregister veröffentlicht. Im
 Wurzelverzeichnis steht allein `BirdMic-1.2.apk` als erprobte Rückfallebene;
-alles andere liegt unter `archiv/`.
+alles andere liegt unter `archiv/`. (Nachtrag 15.09.2026: 2.8 hat den
+Dauerbetrieb inzwischen selbst nachgewiesen, die Rückfallebene ist nach
+`archiv/` gewandert.)
 
 **Wer noch 2.6 hat, muss einmal von Hand nachziehen.** 2.6 sucht ausschließlich
 im Repository, und dort liegt nichts Neues mehr. Ab 2.7 kommt der Verweis aus

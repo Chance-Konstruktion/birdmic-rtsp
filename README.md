@@ -199,11 +199,11 @@ curl -LO https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/bird
 Es ist ein Release-Build, signiert mit dem Debug-Schlüssel (APK Signature
 Scheme v2).
 
-> `BirdMic-1.2.apk` liegt im Wurzelverzeichnis als **Rückfallebene**: die einzige
-> Fassung, die über Wochen im Dauerbetrieb gelaufen ist. Alle Neuerungen seither
-> sind abschaltbar und stehen im Auslieferungszustand auf „aus", so dass sich die
-> aktuelle Version wie 1.2 verhält. Falls doch etwas klemmt, ist 1.2 der Weg
-> zurück. Ältere Fassungen stehen unter [`archiv/`](archiv/).
+> **2.8 ist die erprobte Fassung.** Sie läuft seit ihrer Veröffentlichung am
+> 04.09.2026 ununterbrochen auf einem Nokia 2.3 (Android 11) als Dauerstation —
+> die Rolle, die bis dahin 1.2 innehatte. Eine gesonderte Rückfallebene im
+> Wurzelverzeichnis gibt es deshalb nicht mehr; alle früheren Fassungen
+> einschließlich 1.2 stehen unter [`archiv/`](archiv/).
 
 1. APK aufs Telefon kopieren und antippen
 2. „Installation aus unbekannten Quellen" für den Dateimanager erlauben
@@ -1017,10 +1017,11 @@ Uhren gehen wirklich auseinander.
 
 ## Bekannte Grenzen
 
-- **Version 2.8 ist nicht im Dauerbetrieb erprobt.** Die geräteunabhängigen
-  Teile sind durch 60 Unit-Tests abgedeckt und Lint läuft fehlerfrei, aber die
-  Version ist nicht über Tage auf einem Gerät gelaufen. 1.2 hat das — deshalb
-  liegt sie als Rückfallebene bei.
+- **Im Dauerbetrieb erprobt ist bislang ein einziges Gerät.** 2.8 läuft seit
+  dem 04.09.2026 ununterbrochen auf einem Nokia 2.3 (Android 11); dazu decken
+  60 Unit-Tests die geräteunabhängigen Teile ab und Lint läuft fehlerfrei. Für
+  andere Geräte und Android-Versionen sagt das nichts — siehe die beiden
+  folgenden Punkte.
 - **Android 8 und 9 sind ungetestet.** `minSdk` ist 26, und die
   Fallunterscheidungen für diese Versionen sind vorhanden (Lint erzwingt sie),
   aber gelaufen ist die App bislang nur auf 10 und 11. Wer ein Gerät mit 8 oder
@@ -1051,9 +1052,11 @@ Uhren gehen wirklich auseinander.
 - **Bei WLAN-Aussetzern** bricht die Verbindung ab. ffmpeg auf dem Pi baut sie
   selbstständig neu auf, in den Aufnahmen entsteht eine Lücke.
 - **IPv6 wird nicht angeboten** — die App meldet nur IPv4-Adressen.
-- **Nicht auf einem Gerät automatisiert getestet.** Es gibt keine Unit- oder
-  Instrumentationstests; die Verifikation lief über ffmpeg gegen ein echtes
-  Telefon.
+- **Auf dem Gerät wird nichts automatisiert geprüft.** Die 60 Unit-Tests laufen
+  auf der JVM und decken Digest, Paketwarteschlange, Filter, FFT, Weboberfläche
+  und Verbindungsgrenze ab — Instrumentationstests auf einem echten Telefon gibt
+  es nicht. Alles, was nur am Gerät sichtbar wird, ist von Hand mit ffmpeg
+  geprüft.
 
 ---
 
