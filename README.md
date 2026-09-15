@@ -184,13 +184,30 @@ Verhaltensänderungen — kein Umbau.
 
 ---
 
+> **Gearbeitet wird im GitLab, gespiegelt wird nach GitHub.**
+> Der öffentliche Spiegel liegt unter
+> [github.com/chance-konstruktion/birdmic-rtsp](https://github.com/chance-konstruktion/birdmic-rtsp) —
+> dort liegen die Releases, und dorthin schaut die Versionsprüfung der App.
+> Tickets und Merge Requests laufen weiter im GitLab.
+
 ## Installation
 
 ### Fertige APK
 
 Die fertige APK steht bei den
-[Releases](https://gitlab.schanz.ipv64.net/chance-konstruktion/birdmic-rtsp/-/releases).
-Direkt herunterladen:
+[Releases auf GitHub](https://github.com/chance-konstruktion/birdmic-rtsp/releases) —
+dort sucht auch die Versionsprüfung der App. Direkt herunterladen:
+
+```bash
+curl -LO https://github.com/chance-konstruktion/birdmic-rtsp/releases/download/v2.8/BirdMic-2.8.apk
+```
+
+```
+sha256  5b3c3f193af2ee7e1c37cdd6ceee7bab1165d384d6ade8fac54946b8d0ce25f1
+```
+
+Dieselbe Datei liegt weiterhin im Paketregister des GitLab, aus dem sie gebaut
+wird — für den, der ohnehin dort ist:
 
 ```bash
 curl -LO https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/2.8/BirdMic-2.8.apk
