@@ -610,7 +610,7 @@ Dateien.
 | `DigestAuthTest` | Gültige und ungültige Anmeldung, Methodenbindung, fremde Nonce, Zufälligkeit |
 | `PacketQueueTest` | Reihenfolge, Verwerfen des ältesten Pakets, garantiert blockierungsfreies `offer` |
 | `WebServerTest` | Läuft gegen echte Sockets: Routen, 404/405, HEAD ohne Rumpf, Digest-Ablauf, Überlängen, Port wirklich freigegeben |
-| `UpdateCheckTest` | Was die Versionsprüfung ablehnen muss: Unsinn statt JSON, unplausible Nummern, Dateinamen mit Pfad, Klartext-HTTP |
+| `UpdateCheckTest` | Was die Versionsprüfung ablehnen muss: Unsinn statt JSON, unplausible Nummern, Dateinamen mit Pfad, Klartext-HTTP — und dass keine eingebaute Adresse auf die private Instanz zeigt |
 | `ConnectionLimitTest` | Hält den Vorfall vom 27.08.2026 fest: abgeleitete Empfängerzählung wird unter 16 Threads nie negativ, die ältesten weichen statt der neuesten |
 
 Lint muss fehlerfrei durchlaufen, sonst bricht der Build ab. Es fängt vor allem
@@ -719,11 +719,25 @@ Hintergrund passieren darf.
 
 | | |
 | --- | --- |
-| Gefragt wird | ausschließlich das Projekt-GitLab, anonym lesbar — kein Token in der App, kein fremder Dienst |
+| Gefragt wird | `raw.githubusercontent.com` — die `version.json` des öffentlichen Spiegels, anonym lesbar, kein Token in der App, kein Konto |
+| Der Knopf führt zu | dem Release-Anhang auf GitHub (`…/releases/download/v<version>/BirdMic-<version>.apk`) |
 | Verbindung | nur HTTPS; über Klartext könnte jeder im Netz eine eigene Antwort unterschieben |
 | Häufigkeit | höchstens alle sechs Stunden, nur solange die App offen ist — kein Hintergrunddienst |
 | Kein Netz | kein Fehler, es erscheint einfach nichts |
 | Abschaltbar | unter *Dauerbetrieb*, Voreinstellung an |
+
+> **Warum GitHub und nicht das eigene GitLab.** Bis 2.8 zeigten beide Adressen
+> auf die private Instanz. Solange die App nur auf den eigenen Geräten lief, war
+> das richtig. Sobald die APK öffentlich liegt, klopft aber **jedes fremde
+> Telefon** regelmäßig an einen privaten Heimserver — dessen Adresse stünde dann
+> in jeder Installation, und die Last träfe eine Maschine, die dafür nicht da
+> ist. Die `version.json` ist dieselbe Datei mit demselben Aufbau und derselben
+> strengen Prüfung; es wechselt nur, wer sie ausliefert. Ein Test hält das fest:
+> keine eingebaute Adresse darf auf die private Instanz zeigen.
+>
+> **Solange der Spiegel noch nicht steht,** findet die Prüfung nichts und meldet
+> nichts — kein Fehler, keine Meldung, genau wie ohne Netz. Gearbeitet wird
+> weiter im GitLab; der Spiegel ist die Ladentheke.
 
 ### Damit ein Update überhaupt installierbar ist
 

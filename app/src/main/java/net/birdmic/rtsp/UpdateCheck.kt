@@ -15,27 +15,42 @@ import java.net.URL
  * die laufende App und beendet damit den Dienst. Bei einem Mikrofon, das seit
  * Tagen sendet, entscheidet darueber niemand ausser dem Menschen davor.
  *
- * Gefragt wird ausschliesslich Chris' eigenes GitLab, anonym lesbar. Kein
- * Token in der App, kein fremder Dienst, keine Kennzahlen nach draussen.
+ * Gefragt wird GitHub, anonym lesbar. Kein Token in der App, kein
+ * Anmeldekonto, keine Kennzahlen nach draussen.
+ *
+ * **Warum nicht mehr das eigene GitLab.** Bis 2.8 zeigten beide Adressen
+ * hierhin auf `gitlab.schanz.ipv64.net`. Solange die App nur auf den
+ * eigenen Geraeten lief, war das richtig: kurzer Weg, eine Quelle, nichts
+ * Fremdes. Sobald die APK aber oeffentlich liegt, klopft **jedes fremde
+ * Telefon** regelmaessig an einen privaten Heimserver -- die Adresse
+ * stuende in jeder Installation, und die Last traefe eine Maschine, die
+ * dafuer nicht da ist. Deshalb liegen Versionsdatei und Release jetzt
+ * dort, wo die Oeffentlichkeit ohnehin hinsieht.
+ *
+ * Die `version.json` bleibt dieselbe Datei mit demselben Aufbau und
+ * derselben strengen Pruefung -- es wechselt nur, wer sie ausliefert.
  */
 object UpdateCheck {
 
-    /** Anonym lesbar -- die Instanz ist bewusst offen. */
+    /** Die Versionsdatei im oeffentlichen Spiegel, roh und ohne Anmeldung. */
     const val VERSION_URL =
-        "https://gitlab.schanz.ipv64.net/chance-konstruktion/birdmic-rtsp/-/raw/main/version.json"
+        "https://raw.githubusercontent.com/chance-konstruktion/birdmic-rtsp/main/version.json"
 
     /**
-     * Das generische Paketregister des Projekts, nicht das Repository.
+     * Die Release-Anhaenge, nicht das Repository.
      *
-     * Seit 2.7 liegen die APKs dort statt eingecheckt im Wurzelverzeichnis:
-     * Jede eingecheckte APK bleibt fuer immer in der Historie -- 2,6 MB je
-     * Version, bei einem Projekt mit 4000 Zeilen Quelltext. Job-Artefakte
-     * waeren die naheliegende Alternative, laufen aber ab, und eine Adresse,
-     * die nach vier Wochen ins Leere zeigt, ist als Verweis in einer App
-     * schlimmer als gar keiner.
+     * Der Grund von 2.7 gilt unveraendert: Jede eingecheckte APK bleibt fuer
+     * immer in der Historie -- 2,6 MB je Version, bei einem Projekt mit 4000
+     * Zeilen Quelltext. Job-Artefakte waeren die naheliegende Alternative,
+     * laufen aber ab, und eine Adresse, die nach vier Wochen ins Leere zeigt,
+     * ist als Verweis in einer App schlimmer als gar keiner. Ein Release
+     * laeuft nicht ab.
+     *
+     * Die Marke traegt ein `v` davor (`v2.8`) -- so heissen die Marken seit
+     * 2.7 auch im GitLab, der Spiegel uebernimmt sie unveraendert.
      */
     private const val DOWNLOAD_BASE =
-        "https://gitlab.schanz.ipv64.net/api/v4/projects/5/packages/generic/birdmic/"
+        "https://github.com/chance-konstruktion/birdmic-rtsp/releases/download/"
 
     /** Genug fuer die Datei, klein genug, dass eine falsche Antwort nichts kostet. */
     private const val MAX_BYTES = 8192
@@ -47,7 +62,7 @@ object UpdateCheck {
         val apk: String,
         val notes: String,
     ) {
-        val downloadUrl: String get() = "$DOWNLOAD_BASE$versionName/$apk"
+        val downloadUrl: String get() = "${DOWNLOAD_BASE}v$versionName/$apk"
     }
 
     /**
@@ -113,7 +128,7 @@ object UpdateCheck {
             }
             parse(body)
         } catch (_: IOException) {
-            null // Kein Netz, GitLab nicht erreichbar, Zeitueberschreitung -- alles kein Fehler.
+            null // Kein Netz, GitHub nicht erreichbar, Zeitueberschreitung -- alles kein Fehler.
         } catch (_: SecurityException) {
             null
         } finally {
