@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">BirdMic</string>
+
+    <!-- Aktionen -->
+    <string name="start">Stream starten</string>
+    <string name="stop">Stream stoppen</string>
+    <string name="copy_url">RTSP-Adresse kopieren</string>
+    <string name="battery">Akku-Optimierung ausschalten</string>
+    <string name="battery_already">Akku-Optimierung ist bereits aus – passt so.</string>
+    <string name="clear_log">Logbuch leeren</string>
+    <string name="export_log">Logbuch als Datei sichern</string>
+    <string name="export_done">Bericht gesichert (%1$d kB)</string>
+    <string name="export_failed">Speichern fehlgeschlagen: %1$s</string>
+
+    <!-- Abschnitte -->
+    <string name="section_audio">Audio</string>
+    <string name="section_network">Netzwerk</string>
+    <string name="section_auth">Zugangsschutz</string>
+    <string name="section_runtime">Dauerbetrieb</string>
+    <string name="section_log">Logbuch</string>
+
+    <!-- Beschriftungen -->
+    <string name="level_label">Mikrofonpegel</string>
+    <string name="spectrogram_label">Spektrogramm (live)</string>
+    <string name="source_label">Aufnahmequelle (bestimmt, welches Mikrofon)</string>
+    <string name="device_label">Eingabegerät</string>
+    <string name="samplerate_label">Abtastrate</string>
+    <string name="channels_label">Kanäle</string>
+    <string name="highpass_label">Hochpassfilter</string>
+    <string name="highpass_hint">Entfernt Wind, Verkehr und Gebäudevibration. Die tiefste heimische Vogelstimme (Uhu) liegt bei etwa 250 Hz.</string>
+    <string name="gain_label">Verstärkung (1.0 = unverändert)</string>
+    <string name="port_label">Port</string>
+    <string name="path_label">Pfad</string>
+    <string name="mdns_label">Im Netz als Name anmelden (mDNS)</string>
+    <string name="mdns_hint">Macht den Stream im Netz auffindbar. Auf dem Pi mit „avahi-browse -rt _rtsp._tcp" anzeigen – das liefert die aktuelle IP, auch wenn sie sich geändert hat. Ob zusätzlich ein Name wie birdmic.local auflöst, entscheidet das Telefon; verlass dich nicht darauf, sondern vergib lieber eine feste IP im Router.</string>
+    <string name="web_label">Weboberfläche im Browser (nur lesen)</string>
+    <string name="web_port_label">Port der Weboberfläche</string>
+    <string name="web_hint">Zeigt Status, Logbuch und Spektrogramm im Browser, ohne dass man das Telefon in die Hand nehmen muss. Der Server kann nichts ändern und nichts starten – er liest nur vor. Ohne Zugangsschutz sieht ihn jeder im selben WLAN, deshalb ist er ab Werk aus.</string>
+    <string name="bad_web_port_same">Webserver und RTSP können nicht denselben Port benutzen</string>
+    <string name="detail_web">\nWeboberfläche: %1$s</string>
+
+    <string name="update_label">Beim Öffnen nach neuer Version sehen</string>
+    <string name="update_hint">Fragt nur das Projekt-GitLab, höchstens alle sechs Stunden, und nur solange die App offen ist. Heruntergeladen und installiert wird nichts von allein — eine Installation würde den laufenden Stream beenden.</string>
+    <string name="update_available">Version %1$s ist verfügbar (du hast %2$s)</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_warning">Das Installieren ersetzt die App und beendet den laufenden Stream.</string>
+
+    <string name="udp_timeout_label">UDP-Timeout in Sekunden (0 = aus)</string>
+    <string name="max_clients_label">Maximale Empfänger insgesamt (0 = unbegrenzt)</string>
+    <string name="max_per_ip_label">Maximale Empfänger je Adresse (0 = unbegrenzt)</string>
+    <string name="max_clients_hint">Schützt vor Empfängern, die sich bei einem Verbindungsfehler vervielfachen. Jeder Empfänger kostet die volle Bandbreite – 13 gleichzeitig sind rund 10 Mbit/s. Bei Überschreitung wird der älteste getrennt, nicht der neue abgewiesen.</string>
+    <string name="bad_limit">Wert muss zwischen 0 und 32 liegen</string>
+    <string name="auth_hint">Beide Felder leer lassen = kein Schutz. Digest-Authentifizierung überträgt nur einen Hash, aber der Ton bleibt unverschlüsselt.</string>
+    <string name="auth_user_hint">Benutzername (optional)</string>
+    <string name="auth_password_hint">Passwort (optional)</string>
+    <string name="amoled_label">Immer dunkel (AMOLED-Schwarz)</string>
+    <string name="amoled_hint">Spart im Dauerbetrieb keinen Strom – dann ist der Bildschirm ohnehin aus. Hilft beim Ablesen in der Dämmerung und gegen Einbrennen, falls das Display dauerhaft anbleibt.</string>
+    <string name="autostart">Nach Neustart automatisch starten</string>
+    <string name="battery_warn_label">Warnen ab Akkutemperatur in °C (0 = aus)</string>
+
+    <!-- Auswahlwerte -->
+    <string name="mono">Mono (empfohlen)</string>
+    <string name="stereo">Stereo, falls das Gerät es kann</string>
+    <string name="highpass_off">Aus</string>
+    <string name="highpass_value">%1$d Hz</string>
+    <string name="samplerate_value">%1$d Hz</string>
+    <string name="samplerate_recommended">48000 Hz (empfohlen)</string>
+
+    <!-- Status -->
+    <string name="status_stopped">Gestoppt</string>
+    <string name="status_waiting">Bereit – wartet auf Verbindung</string>
+    <string name="status_error">Fehler: %1$s</string>
+    <plurals name="status_streaming">
+        <item quantity="one">Sendet an %1$d Empfänger</item>
+        <item quantity="other">Sendet an %1$d Empfänger</item>
+    </plurals>
+
+    <string name="detail">%1$s</string>
+    <string name="detail_active_mic">\nAktives Mikrofon: %1$s</string>
+    <string name="detail_mdns">\nmDNS angemeldet als „%1$s" (_rtsp._tcp)</string>
+    <string name="detail_restarts">\n⚠ Aufnahme %1$d× neu gestartet</string>
+    <string name="detail_idle">%1$d Hz mono, unkomprimiertes L16</string>
+
+    <string name="peak_info">Spitze %1$d %%  ·  Übersteuert: %2$s</string>
+    <string name="peak_clean">nie</string>
+    <string name="peak_clipped">%1$d Samples ⚠</string>
+
+    <string name="clients_none">🔌 Niemand verbunden</string>
+    <plurals name="clients_count">
+        <item quantity="one">🔊 %1$d Empfänger verbunden</item>
+        <item quantity="other">🔊 %1$d Empfänger verbunden</item>
+    </plurals>
+    <string name="clients_list">\n%1$s</string>
+    <string name="clients_idle">Stream läuft nicht</string>
+
+    <string name="stats">Laufzeit %1$s  ·  %2$s gesendet\nAkku %3$s</string>
+    <string name="log_empty">Noch keine Einträge.</string>
+    <string name="tile_running">Sendet an %1$d Empfänger</string>
+
+    <string name="autostart_blocked_title">BirdMic konnte nicht automatisch starten</string>
+    <string name="autostart_blocked_text">Ab Android 14 darf eine App das Mikrofon nicht nach einem Neustart von allein belegen. Zum Starten hier tippen.</string>
+    <string name="autostart_blocked_short">Autostart von Android blockiert – manuell starten</string>
+
+    <!-- Meldungen -->
+    <string name="bad_port">Port muss zwischen 1024 und 65535 liegen</string>
+    <string name="bad_gain">Verstärkung muss zwischen 0.1 und 20 liegen</string>
+    <string name="bad_timeout">Timeout muss 0 oder zwischen 30 und 3600 liegen</string>
+    <string name="bad_temp">Temperatur muss 0 oder zwischen 30 und 60 liegen</string>
+    <string name="bad_auth">Für den Zugangsschutz braucht es Benutzername und Passwort</string>
+    <string name="copied">Kopiert: %1$s</string>
+    <string name="need_mic">Ohne Mikrofonberechtigung geht es nicht.</string>
+    <string name="no_settings">Einstellungen ließen sich nicht öffnen.</string>
+
+    <string name="hint">Das Handy muss im selben WLAN hängen wie der Pi. In BirdNET-Pi unter Settings → Advanced das Feld RTSP_STREAM auf die obige Adresse setzen. Für Dauerbetrieb: Akku-Optimierung ausschalten, feste IP im Router vergeben und am Ladekabel lassen.</string>
+</resources>

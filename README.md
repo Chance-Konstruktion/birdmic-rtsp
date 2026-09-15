@@ -1,5 +1,7 @@
 # BirdMic
 
+[English](README_EN.md)
+
 **Ein altes Android-Telefon als WLAN-Mikrofon für BirdNET-Pi.**
 
 BirdMic macht aus einem ausgedienten Smartphone einen RTSP-Audioserver. Das
