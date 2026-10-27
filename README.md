@@ -617,7 +617,7 @@ Dateien.
 ./gradlew testReleaseUnitTest lintRelease
 ```
 
-**60 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
+**66 Unit-Tests**, laufen auf der JVM ohne Gerät oder Emulator:
 
 | Testklasse | Prüft |
 | --- | --- |
@@ -857,7 +857,7 @@ Unfertigkeit.
 | Verbindungen | höchstens 4 gleichzeitig, 5 s Lesezeitlimit, kein Keep-Alive |
 | Seite | eine einzige HTML-Datei unter 6 kB, einkompiliert, ohne Nachladen — läuft ohne Internetzugang |
 | Zugangsschutz | dieselben Zugangsdaten wie RTSP; der Browser fragt sie ab |
-| Last | zwei Abrufe pro Sekunde je offenem Browser; im Hintergrundtab pausiert das Spektrogramm von selbst |
+| Last | etwa zwei Abrufe pro Sekunde im sichtbaren Tab; im Hintergrund werden sämtliche Polling-Timer pausiert |
 
 Fällt der Webserver aus — belegter Port etwa —, läuft der Ton unverändert
 weiter; es gibt nur eine Zeile im Logbuch. Die beiden teilen sich die
@@ -1083,7 +1083,7 @@ Uhren gehen wirklich auseinander.
 - **Bei WLAN-Aussetzern** bricht die Verbindung ab. ffmpeg auf dem Pi baut sie
   selbstständig neu auf, in den Aufnahmen entsteht eine Lücke.
 - **IPv6 wird nicht angeboten** — die App meldet nur IPv4-Adressen.
-- **Auf dem Gerät wird nichts automatisiert geprüft.** Die 60 Unit-Tests laufen
+- **Auf dem Gerät wird nichts automatisiert geprüft.** Die 66 Unit-Tests laufen
   auf der JVM und decken Digest, Paketwarteschlange, Filter, FFT, Weboberfläche
   und Verbindungsgrenze ab — Instrumentationstests auf einem echten Telefon gibt
   es nicht. Alles, was nur am Gerät sichtbar wird, ist von Hand mit ffmpeg
