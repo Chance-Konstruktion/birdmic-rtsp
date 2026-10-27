@@ -32,10 +32,11 @@ class DigestAuth(private val username: String, private val password: String) {
         "Digest realm=\"$realm\", nonce=\"$nonce\", stale=\"FALSE\""
 
     /**
-     * Prueft den Authorization-Header eines Clients.
-     * [method] ist die RTSP-Methode, weil sie in den Hash eingeht.
+     * Prueft den Authorization-Header eines Clients und bindet ihn an den
+     * tatsaechlichen Request-Target. Ohne diesen Vergleich koennte ein gueltiger
+     * Header auf einen anderen Pfad derselben Methode wiederverwendet werden.
      */
-    fun verify(header: String?, method: String): Boolean {
+    fun verify(header: String?, method: String, requestUri: String): Boolean {
         if (!enabled) return true
         if (header == null || !header.trimStart().startsWith("Digest", ignoreCase = true)) return false
 
@@ -46,6 +47,7 @@ class DigestAuth(private val username: String, private val password: String) {
         val clientNonce = fields["nonce"] ?: return false
 
         if (user != username) return false
+        if (uri != requestUri) return false
         // Nur die selbst ausgegebene Nonce akzeptieren -- damit fallen
         // Mitschnitte aus frueheren Serverlaeufen heraus.
         if (clientNonce != nonce) return false
