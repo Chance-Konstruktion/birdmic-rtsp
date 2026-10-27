@@ -34,6 +34,9 @@ class WebStatus(
 
     override fun statusJson(): String {
         val state = RtspService.State
+        val engine = state.engine
+        val actualRate = engine?.sampleRate ?: prefs.sampleRate
+        val actualChannels = engine?.channels ?: prefs.channels
         val json = JSONObject()
             .put("app", BuildConfig.VERSION_NAME)
             .put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
@@ -49,7 +52,7 @@ class WebStatus(
             .put("clipped", state.clipped)
             .put("restarts", state.restarts)
             .put("hot", state.batteryTooHot)
-            .put("format", "${prefs.sampleRate} Hz ${if (prefs.channels == 2) "stereo" else "mono"}, L16")
+            .put("format", "$actualRate Hz ${if (actualChannels == 2) "stereo" else "mono"}, L16")
 
         if (state.running) {
             json.put("uptime", Diagnostics.formatDuration(state.uptimeSeconds))
