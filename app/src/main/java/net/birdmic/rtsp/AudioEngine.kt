@@ -353,14 +353,16 @@ class AudioEngine(
             disableProcessing(record.audioSessionId)
 
             val device = selectInputDevice()
-            if (device != null && !runCatching { record.setPreferredDevice(device) }.getOrDefault(false)) {
+            val deviceSelected = device != null &&
+                runCatching { record.setPreferredDevice(device) }.getOrDefault(false)
+            if (device != null && !deviceSelected) {
                 Log.w(TAG, "Bevorzugtes Eingabegeraet konnte nicht gesetzt werden; Android waehlt die Quelle")
             }
             sourceDescription = buildString {
                 append(SourceChoice.fromValue(source).label)
                 append(" · $sampleRate Hz ")
                 append(if (channels == 2) "stereo" else "mono")
-                append(", ").append(device?.let { describeDevice(it) } ?: "automatisch")
+                append(", ").append(device?.takeIf { deviceSelected }?.let { describeDevice(it) } ?: "automatisch")
                 if (highPassHz > 0) append(" · Hochpass $highPassHz Hz")
             }
             lastError = null
