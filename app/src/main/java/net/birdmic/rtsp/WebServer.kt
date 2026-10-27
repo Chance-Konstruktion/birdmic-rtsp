@@ -131,7 +131,9 @@ class WebServer(
                 respond(output, 405, "text/plain; charset=utf-8", "Nur GET".toByteArray(), false)
                 return
             }
-            if (auth?.enabled == true && !auth.verify(request.authorization, request.method)) {
+            if (auth?.enabled == true &&
+                !auth.verify(request.authorization, request.method, request.requestUri)
+            ) {
                 respondUnauthorized(output)
                 return
             }
@@ -208,7 +210,12 @@ class WebServer(
         else -> "OK"
     }
 
-    private data class Request(val method: String, val path: String, val authorization: String?)
+    private data class Request(
+        val method: String,
+        val path: String,
+        val requestUri: String,
+        val authorization: String?,
+    )
 
     /** null, wenn die Anfrage unbrauchbar ist oder die Grenzen sprengt. */
     private fun readRequest(input: BufferedInputStream): Request? {
@@ -216,9 +223,10 @@ class WebServer(
         val parts = requestLine.split(' ')
         if (parts.size < 2) return null
         val method = parts[0].uppercase()
-        // Der Anfrageteil hinter '?' interessiert uns nicht -- der Browser
-        // haengt dort nur seinen Zwischenspeicher-Brecher an.
-        val path = parts[1].substringBefore('?').ifBlank { "/" }
+        // Routing ignores the query string, but digest authentication must bind
+        // to the exact request-target supplied by the client (including query).
+        val requestUri = parts[1]
+        val path = requestUri.substringBefore('?').ifBlank { "/" }
 
         var authorization: String? = null
         var count = 0
@@ -230,7 +238,7 @@ class WebServer(
                 authorization = line.substringAfter(':').trim()
             }
         }
-        return Request(method, path, authorization)
+        return Request(method, path, requestUri, authorization)
     }
 
     /** Zeile ohne CRLF; null bei Dateiende oder Ueberlaenge. */
