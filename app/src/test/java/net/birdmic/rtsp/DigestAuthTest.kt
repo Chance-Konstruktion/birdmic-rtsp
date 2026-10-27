@@ -39,25 +39,25 @@ class DigestAuthTest {
     @Test
     fun `akzeptiert gueltige Zugangsdaten`() {
         val auth = DigestAuth(user, password)
-        assertTrue(auth.verify(authHeader(auth), "DESCRIBE"))
+        assertTrue(auth.verify(authHeader(auth), "DESCRIBE", uri))
     }
 
     @Test
     fun `lehnt ein falsches Passwort ab`() {
         val auth = DigestAuth(user, password)
-        assertFalse(auth.verify(authHeader(auth, password = "falsch"), "DESCRIBE"))
+        assertFalse(auth.verify(authHeader(auth, password = "falsch"), "DESCRIBE", uri))
     }
 
     @Test
     fun `lehnt einen falschen Benutzer ab`() {
         val auth = DigestAuth(user, password)
-        assertFalse(auth.verify(authHeader(auth, user = "jemand"), "DESCRIBE"))
+        assertFalse(auth.verify(authHeader(auth, user = "jemand"), "DESCRIBE", uri))
     }
 
     @Test
     fun `lehnt eine fremde Nonce ab`() {
         val auth = DigestAuth(user, password)
-        assertFalse(auth.verify(authHeader(auth, nonce = "00112233445566778899aabbccddeeff"), "DESCRIBE"))
+        assertFalse(auth.verify(authHeader(auth, nonce = "00112233445566778899aabbccddeeff"), "DESCRIBE", uri))
     }
 
     @Test
@@ -65,23 +65,30 @@ class DigestAuthTest {
         // Ein fuer DESCRIBE erzeugter Hash darf bei PLAY nicht durchgehen.
         val auth = DigestAuth(user, password)
         val header = authHeader(auth, method = "DESCRIBE")
-        assertFalse(auth.verify(header, "PLAY"))
+        assertFalse(auth.verify(header, "PLAY", uri))
+    }
+
+    @Test
+    fun `bindet die Antwort an den angefragten URI`() {
+        val auth = DigestAuth(user, password)
+        val header = authHeader(auth)
+        assertFalse(auth.verify(header, "DESCRIBE", "$uri/anderer-pfad"))
     }
 
     @Test
     fun `lehnt fehlende und kaputte Koepfe ab`() {
         val auth = DigestAuth(user, password)
-        assertFalse(auth.verify(null, "DESCRIBE"))
-        assertFalse(auth.verify("", "DESCRIBE"))
-        assertFalse(auth.verify("Basic aGFsbG86d2VsdA==", "DESCRIBE"))
-        assertFalse(auth.verify("Digest ohne=felder", "DESCRIBE"))
+        assertFalse(auth.verify(null, "DESCRIBE", uri))
+        assertFalse(auth.verify("", "DESCRIBE", uri))
+        assertFalse(auth.verify("Basic aGFsbG86d2VsdA==", "DESCRIBE", uri))
+        assertFalse(auth.verify("Digest ohne=felder", "DESCRIBE", uri))
     }
 
     @Test
     fun `laesst ohne konfigurierte Zugangsdaten alles durch`() {
         val auth = DigestAuth("", "")
         assertFalse("Ohne Zugangsdaten ist der Schutz aus", auth.enabled)
-        assertTrue(auth.verify(null, "DESCRIBE"))
+        assertTrue(auth.verify(null, "DESCRIBE", uri))
     }
 
     @Test
