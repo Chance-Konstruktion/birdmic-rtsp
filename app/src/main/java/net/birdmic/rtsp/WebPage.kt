@@ -181,10 +181,31 @@ function tickSpectrum() {
   get('/api/spectrum', function (d) { if (d.bands) drawColumn(d.bands); });
 }
 
-tick(); tickLog(); tickSpectrum();
-setInterval(tick, 1000);
-setInterval(tickLog, 5000);
-setInterval(tickSpectrum, 250);
+var pollTimers = [];
+
+function startPolling() {
+  if (pollTimers.length || document.hidden) return;
+  tick(); tickLog(); tickSpectrum();
+  // About two requests per second while visible. Audio capture has priority.
+  pollTimers = [
+    setInterval(tick, 1200),
+    setInterval(tickLog, 10000),
+    setInterval(tickSpectrum, 1000)
+  ];
+}
+
+function stopPolling() {
+  for (var i = 0; i < pollTimers.length; i++) clearInterval(pollTimers[i]);
+  pollTimers = [];
+}
+
+// Do not keep waking the browser or making requests from a hidden tab.
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) stopPolling();
+  else startPolling();
+});
+
+startPolling();
 </script>
 </body>
 </html>
