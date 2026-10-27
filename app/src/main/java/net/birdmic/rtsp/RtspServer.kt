@@ -454,12 +454,13 @@ class RtspServer(
                 respond(cseq, 455, "Method Not Valid In This State", emptyMap())
                 return
             }
+            val (nextSequence, nextTimestamp) = active.nextPacketPosition()
             respond(
                 cseq, 200, "OK",
                 mapOf(
                     "Session" to sessionId,
                     "Range" to "npt=now-",
-                    "RTP-Info" to "url=$uri;seq=${active.startSequence};rtptime=${active.startTimestamp}",
+                    "RTP-Info" to "url=$uri;seq=$nextSequence;rtptime=$nextTimestamp",
                 ),
             )
             if (playingFlag.compareAndSet(false, true)) {
