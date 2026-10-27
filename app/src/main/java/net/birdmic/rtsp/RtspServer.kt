@@ -211,7 +211,7 @@ class RtspServer(
         // Der Versand laeuft in einem eigenen Thread, damit ein langsamer
         // Empfaenger niemals den Aufnahme-Thread anhaelt.
         private val packetBytes = audio.framesPerPacket * audio.channels * 2
-        private val queue = PacketQueue(QUEUE_CAPACITY, packetBytes)
+        @Volatile private var queue = PacketQueue(QUEUE_CAPACITY, packetBytes)
         @Volatile private var senderThread: Thread? = null
 
         /** Wie viele Pakete dieser Client verpasst hat, weil er zu langsam war. */
@@ -405,6 +405,14 @@ class RtspServer(
 
         private fun handleSetup(request: Request, cseq: String) {
             val transport = request.headers["transport"].orEmpty()
+
+            // A repeated SETUP replaces the transport. Stop an active sender and
+            // release its sockets before creating a new RTP/RTCP transport.
+            if (isPlaying) stopStreaming(joinSender = true)
+            sender?.close()
+            sender = null
+            queue = PacketQueue(QUEUE_CAPACITY, packetBytes)
+
             try {
                 if (transport.contains("/TCP", ignoreCase = true)) {
                     val channels = Regex("interleaved=(\\d+)-(\\d+)").find(transport)
@@ -455,6 +463,10 @@ class RtspServer(
                 ),
             )
             if (playingFlag.compareAndSet(false, true)) {
+                // PAUSE closes its queue to unblock the sender thread. A resumed
+                // PLAY therefore needs a fresh queue or it would return 200 OK
+                // while silently discarding every subsequent audio packet.
+                queue = PacketQueue(QUEUE_CAPACITY, packetBytes)
                 // Reihenfolge ist hier wesentlich: erst vollstaendig lebendig
                 // werden, dann aufraeumen. In 2.3 stand das Abraeumen davor --
                 // dadurch galt diese Verbindung bereits als spielend, waehrend
