@@ -127,23 +127,40 @@ function tick() {
       'Pegel ' + Math.round(s.level * 100) + ' %  ·  Spitze ' + Math.round(s.peak * 100) + ' %';
     document.getElementById('barfill').style.width = Math.round(Math.sqrt(s.level) * 100) + '%';
 
-    var html = '';
+    // Build DOM nodes instead of inserting server/device values as HTML.
+    // These values include user-configurable names and must remain plain text.
+    var facts = document.getElementById('facts');
+    facts.textContent = '';
     for (var i = 0; i < rows.length; i++) {
       var v = s[rows[i][0]];
       if (v === null || v === undefined || v === '') continue;
-      html += '<tr><td>' + rows[i][1] + '</td><td>' + v + '</td></tr>';
+      var tr = document.createElement('tr');
+      var label = document.createElement('td');
+      var value = document.createElement('td');
+      label.textContent = rows[i][1];
+      value.textContent = String(v);
+      tr.appendChild(label);
+      tr.appendChild(value);
+      facts.appendChild(tr);
     }
-    document.getElementById('facts').innerHTML = html;
 
     var c = document.getElementById('clients');
+    c.textContent = '';
     if (!s.clientList || !s.clientList.length) {
-      c.innerHTML = '<span class="dim">Niemand verbunden</span>';
+      var nobody = document.createElement('span');
+      nobody.className = 'dim';
+      nobody.textContent = 'Niemand verbunden';
+      c.appendChild(nobody);
     } else {
-      var li = '';
+      var ul = document.createElement('ul');
       for (var j = 0; j < s.clientList.length; j++) {
-        li += '<li><code>' + s.clientList[j] + '</code></li>';
+        var li = document.createElement('li');
+        var code = document.createElement('code');
+        code.textContent = String(s.clientList[j]);
+        li.appendChild(code);
+        ul.appendChild(li);
       }
-      c.innerHTML = '<ul>' + li + '</ul>';
+      c.appendChild(ul);
     }
   });
 }
