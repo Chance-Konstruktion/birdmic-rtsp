@@ -34,14 +34,19 @@ class EventLog private constructor(context: Context) {
         val lastTimestamp: Long = timestamp,
     ) {
         fun format(): String =
-            "${TIME_FORMAT.format(Date(timestamp))}  ${icon()} $message${repeatSuffix(TIME_FORMAT)}"
+            "${formatDate(TIME_FORMAT, Date(timestamp))}  ${icon()} $message${repeatSuffix(TIME_FORMAT)}"
 
         /** Zeitstempel mit Jahr -- fuer den Export, wo Eintraege Wochen alt sein koennen. */
         fun formatLong(): String =
-            "${FULL_FORMAT.format(Date(timestamp))}  ${icon()} $message${repeatSuffix(FULL_FORMAT)}"
+            "${formatDate(FULL_FORMAT, Date(timestamp))}  ${icon()} $message${repeatSuffix(FULL_FORMAT)}"
 
         private fun repeatSuffix(format: SimpleDateFormat): String =
-            if (repeats > 1) "  [${repeats}×, zuletzt ${format.format(Date(lastTimestamp))}]" else ""
+            if (repeats > 1) "  [${repeats}×, zuletzt ${formatDate(format, Date(lastTimestamp))}]" else ""
+
+        // SimpleDateFormat is mutable and not thread-safe. Entries are formatted
+        // by the activity, HTTP dashboard workers and diagnostic exporter.
+        private fun formatDate(format: SimpleDateFormat, date: Date): String =
+            synchronized(format) { format.format(date) }
 
         fun icon() = when (kind) {
             Kind.START -> "▶"
