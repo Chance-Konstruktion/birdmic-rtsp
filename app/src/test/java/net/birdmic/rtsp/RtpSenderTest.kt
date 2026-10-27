@@ -67,6 +67,29 @@ class RtpSenderTest {
     }
 
     @Test
+    fun `liefert die Position des naechsten Pakets fuer erneutes PLAY`() {
+        val sender = RtpSender(Capture())
+        val initial = sender.nextPacketPosition()
+        assertEquals(sender.startSequence, initial.first)
+        assertEquals(sender.startTimestamp.toLong(), initial.second)
+
+        sender.send(ByteArray(320), 160)
+        val next = sender.nextPacketPosition()
+        assertEquals((sender.startSequence + 1) and 0xFFFF, next.first)
+        assertEquals(sender.startTimestamp.toLong() + 160L, next.second)
+    }
+
+    @Test
+    fun `RTP-Zeitstempel bleibt nach 32-Bit-Ueberlauf vorzeichenlos`() {
+        val sender = RtpSender(Capture())
+        sender.send(ByteArray(4), Int.MAX_VALUE)
+
+        val timestamp = sender.nextPacketPosition().second
+        assertTrue("Zeitstempel muss als unsigned 32-bit dargestellt werden", timestamp > Int.MAX_VALUE.toLong())
+        assertTrue("Zeitstempel darf 2^32 nicht erreichen", timestamp in 0L..0xFFFF_FFFFL)
+    }
+
+    @Test
     fun `haelt die SSRC ueber alle Pakete konstant`() {
         val capture = Capture()
         val sender = RtpSender(capture)
