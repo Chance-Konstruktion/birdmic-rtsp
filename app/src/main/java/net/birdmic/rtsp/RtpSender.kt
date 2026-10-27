@@ -135,6 +135,17 @@ class RtpSender(
 
     private var buffer = ByteArray(12 + 4096)
 
+    /**
+     * Position of the next RTP packet. The timestamp is rendered as unsigned
+     * 32-bit because RTP timestamps wrap modulo 2^32, not at Int.MAX_VALUE.
+     * Synchronization keeps the sequence/timestamp pair consistent while
+     * another thread is writing a packet.
+     */
+    @Synchronized
+    fun nextPacketPosition(): Pair<Int, Long> =
+        sequence to (timestamp.toLong() and 0xFFFF_FFFFL)
+
+    @Synchronized
     fun send(payload: ByteArray, frames: Int) {
         if (failed) return
         val total = 12 + payload.size
