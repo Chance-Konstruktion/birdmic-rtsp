@@ -324,11 +324,13 @@ class MainActivity : AppCompatActivity() {
             gainField.error = getString(R.string.bad_gain)
             return false
         }
-        val webPort = webPortField.text.toString().ifBlank { "0" }.toIntOrNull()
-        if (webPort == null || webPort !in 1024..65535) {
+        val webPortInput = webPortField.text.toString().ifBlank { "0" }.toIntOrNull()
+        if (webBox.isChecked && (webPortInput == null || webPortInput !in 1024..65535)) {
             webPortField.error = getString(R.string.bad_port)
             return false
         }
+        // An unused dashboard port must not prevent the RTSP stream from starting.
+        val webPort = webPortInput?.takeIf { it in 1024..65535 } ?: prefs.webPort
         if (webBox.isChecked && webPort == port) {
             webPortField.error = getString(R.string.bad_web_port_same)
             return false
