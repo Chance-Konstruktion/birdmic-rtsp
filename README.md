@@ -1050,7 +1050,7 @@ Uhren gehen wirklich auseinander.
 
 - **Im Dauerbetrieb erprobt ist bislang ein einziges Gerät.** 2.8 läuft seit
   dem 04.09.2026 ununterbrochen auf einem Nokia 2.3 (Android 11); dazu decken
-  60 Unit-Tests die geräteunabhängigen Teile ab und Lint läuft fehlerfrei. Für
+  66 Unit-Tests die geräteunabhängigen Teile ab und Lint läuft fehlerfrei. Für
   andere Geräte und Android-Versionen sagt das nichts — siehe die beiden
   folgenden Punkte.
 - **Android 8 und 9 sind ungetestet.** `minSdk` ist 26, und die
