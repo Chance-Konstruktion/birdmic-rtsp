@@ -7,7 +7,10 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 /**
@@ -53,9 +56,19 @@ class WebServer(
     /** Der tatsaechlich belegte Port; bei [port] = 0 vergibt ihn das System. */
     val boundPort: Int get() = socket?.localPort ?: 0
 
-    private val workers = Executors.newFixedThreadPool(MAX_WORKERS) { r ->
-        Thread(r, "birdmic-web").apply { isDaemon = true }
-    }
+    // Track accepted sockets as well as running tasks: queued clients must also
+    // be closed on shutdown, not just tasks that have started.
+    private val openClients = ConcurrentHashMap.newKeySet<Socket>()
+
+    private val workers = ThreadPoolExecutor(
+        MAX_WORKERS,
+        MAX_WORKERS,
+        0L,
+        TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue(MAX_QUEUED_CONNECTIONS),
+        { r -> Thread(r, "birdmic-web").apply { isDaemon = true } },
+        ThreadPoolExecutor.AbortPolicy(),
+    )
 
     fun start(): Boolean {
         return try {
@@ -78,6 +91,10 @@ class WebServer(
         running = false
         runCatching { socket?.close() }
         socket = null
+        // Also unblock workers currently reading and release sockets belonging
+        // to tasks still waiting in the bounded queue.
+        openClients.toList().forEach { client -> runCatching { client.close() } }
+        openClients.clear()
         workers.shutdownNow()
         runCatching { workers.awaitTermination(1, TimeUnit.SECONDS) }
     }
@@ -90,11 +107,13 @@ class WebServer(
                 if (running) onEvent?.invoke(EventLog.Kind.WARNING, "Webserver: ${e.message}")
                 break
             }
-            // Bei voller Warteschlange lieber sofort zumachen als den Speicher
-            // volllaufen lassen; der Browser versucht es in einer Sekunde erneut.
+            openClients.add(client)
+            // The worker queue is bounded. When both workers and queue are full,
+            // reject the new socket immediately rather than retaining it forever.
             try {
                 workers.execute { handle(client) }
-            } catch (_: Exception) {
+            } catch (_: RejectedExecutionException) {
+                openClients.remove(client)
                 runCatching { client.close() }
             }
         }
@@ -123,6 +142,7 @@ class WebServer(
             // Browser weggeklickt. Kein Grund fuer einen Logbucheintrag.
         } finally {
             runCatching { client.close() }
+            openClients.remove(client)
         }
     }
 
@@ -228,6 +248,7 @@ class WebServer(
     companion object {
         const val DEFAULT_PORT = 8080
         private const val MAX_WORKERS = 4
+        private const val MAX_QUEUED_CONNECTIONS = 8
         private const val MAX_HEADERS = 32
         private const val MAX_LINE = 2048
         private const val READ_TIMEOUT_MS = 5000
