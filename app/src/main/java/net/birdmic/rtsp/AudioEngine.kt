@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AudioEffect
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.os.Build
@@ -96,6 +97,9 @@ class AudioEngine(
     @Volatile var lastError: String? = null
         private set
 
+    // Keep handles to effects so each recorder lifecycle releases its resources.
+    private var processingEffects: List<AudioEffect> = emptyList()
+
     fun addSink(sink: Sink) = sinks.add(sink)
     fun removeSink(sink: Sink) = sinks.remove(sink)
 
@@ -144,7 +148,8 @@ class AudioEngine(
 
             val stoppedCleanly = pump(current)
             runCatching { current.stop() }
-            current.release()
+            releaseProcessing()
+            runCatching { current.release() }
             level = 0f
 
             if (!running) break
@@ -157,6 +162,14 @@ class AudioEngine(
             )
             sleepInterruptibly(if (stoppedCleanly) 500L else backoffMs)
             if (!stoppedCleanly) backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
+        }
+
+        // stop() can race with the initial thread start. If the loop never runs,
+        // it still owns the first AudioRecord returned by start().
+        record?.let { pending ->
+            runCatching { pending.stop() }
+            releaseProcessing()
+            runCatching { pending.release() }
         }
     }
 
@@ -340,8 +353,8 @@ class AudioEngine(
             disableProcessing(record.audioSessionId)
 
             val device = selectInputDevice()
-            if (device != null) {
-                record.preferredDevice = device
+            if (device != null && !runCatching { record.setPreferredDevice(device) }.getOrDefault(false)) {
+                Log.w(TAG, "Bevorzugtes Eingabegeraet konnte nicht gesetzt werden; Android waehlt die Quelle")
             }
             sourceDescription = buildString {
                 append(SourceChoice.fromValue(source).label)
@@ -418,21 +431,29 @@ class AudioEngine(
     }
 
     private fun disableProcessing(sessionId: Int) {
+        val created = mutableListOf<AudioEffect>()
+
+        fun disable(effect: AudioEffect?) {
+            if (effect == null) return
+            created += effect
+            runCatching { effect.enabled = false }
+        }
+
         runCatching {
-            if (AutomaticGainControl.isAvailable()) {
-                AutomaticGainControl.create(sessionId)?.enabled = false
-            }
+            if (AutomaticGainControl.isAvailable()) disable(AutomaticGainControl.create(sessionId))
         }
         runCatching {
-            if (NoiseSuppressor.isAvailable()) {
-                NoiseSuppressor.create(sessionId)?.enabled = false
-            }
+            if (NoiseSuppressor.isAvailable()) disable(NoiseSuppressor.create(sessionId))
         }
         runCatching {
-            if (AcousticEchoCanceler.isAvailable()) {
-                AcousticEchoCanceler.create(sessionId)?.enabled = false
-            }
+            if (AcousticEchoCanceler.isAvailable()) disable(AcousticEchoCanceler.create(sessionId))
         }
+        processingEffects = created
+    }
+
+    private fun releaseProcessing() {
+        processingEffects.forEach { effect -> runCatching { effect.release() } }
+        processingEffects = emptyList()
     }
 
     companion object {
