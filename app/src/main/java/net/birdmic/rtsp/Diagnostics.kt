@@ -19,7 +19,7 @@ object Diagnostics {
     private val FILE_STAMP = SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.GERMANY)
     private val HEADER_STAMP = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.GERMANY)
 
-    fun fileName(): String = "birdmic-log-${FILE_STAMP.format(Date())}.txt"
+    fun fileName(): String = "birdmic-log-${formatDate(FILE_STAMP, Date())}.txt"
 
     fun report(context: Context, prefs: Prefs, log: EventLog): String {
         val state = RtspService.State
@@ -27,7 +27,7 @@ object Diagnostics {
 
         return buildString {
             line("BirdMic ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})")
-            line("Bericht vom ${HEADER_STAMP.format(Date())}")
+            line("Bericht vom ${formatDate(HEADER_STAMP, Date())}")
             line("")
 
             section("Gerät")
@@ -83,6 +83,10 @@ object Diagnostics {
             }
         }
     }
+
+    // Web requests can build reports concurrently; SimpleDateFormat is not thread-safe.
+    private fun formatDate(format: SimpleDateFormat, date: Date): String =
+        synchronized(format) { format.format(date) }
 
     private fun limit(value: Int) = if (value == 0) "unbegrenzt" else value.toString()
 
