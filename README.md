@@ -623,10 +623,10 @@ Dateien.
 | --- | --- |
 | `HighPassFilterTest` | Frequenzgang: 30 Hz gedämpft, 250 Hz erhalten, 1 kHz unverändert, Kanaltrennung bei Stereo |
 | `FftTest` | Bekannte Sinustöne landen im richtigen Bin, Stille bleibt leer, Amplitude skaliert linear |
-| `RtpSenderTest` | RTP-Kopf nach RFC 3550, Sequenz- und Zeitstempelfortschritt, SSRC, Überlauf bei 65535 |
-| `DigestAuthTest` | Gültige und ungültige Anmeldung, Methodenbindung, fremde Nonce, Zufälligkeit |
+| `RtpSenderTest` | RTP-Kopf nach RFC 3550, Sequenz- und Zeitstempelfortschritt, SSRC, Sequenzüberlauf und vorzeichenloser 32-Bit-Zeitstempel |
+| `DigestAuthTest` | Gültige und ungültige Anmeldung, Methoden- und URI-Bindung, fremde Nonce, Zufälligkeit |
 | `PacketQueueTest` | Reihenfolge, Verwerfen des ältesten Pakets, garantiert blockierungsfreies `offer` |
-| `WebServerTest` | Läuft gegen echte Sockets: Routen, 404/405, HEAD ohne Rumpf, Digest-Ablauf, Überlängen, Port wirklich freigegeben |
+| `WebServerTest` | Echte Sockets: Routen, 404/405, HEAD, Digest-URI-Bindung, Überlast, sichere Dashboard-Ausgabe und pausiertes Hintergrund-Polling |
 | `UpdateCheckTest` | Was die Versionsprüfung ablehnen muss: Unsinn statt JSON, unplausible Nummern, Dateinamen mit Pfad, Klartext-HTTP — und dass keine eingebaute Adresse auf die private Instanz zeigt |
 | `ConnectionLimitTest` | Hält den Vorfall vom 27.08.2026 fest: abgeleitete Empfängerzählung wird unter 16 Threads nie negativ, die ältesten weichen statt der neuesten |
 
