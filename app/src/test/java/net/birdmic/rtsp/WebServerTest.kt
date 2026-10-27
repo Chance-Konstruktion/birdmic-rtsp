@@ -96,6 +96,8 @@ class WebServerTest {
         assertFalse(WebPage.HTML.contains(".innerHTML"))
         assertTrue(WebPage.HTML.contains("createElement"))
         assertTrue(WebPage.HTML.contains("textContent"))
+        assertTrue(WebPage.HTML.contains("document.addEventListener('visibilitychange'"))
+        assertTrue(WebPage.HTML.contains("clearInterval"))
     }
 
     @Test
