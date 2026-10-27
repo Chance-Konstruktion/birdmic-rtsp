@@ -90,6 +90,43 @@ class WebServerTest {
     }
 
     @Test
+    fun `Dashboard setzt dynamische Werte nicht als HTML ein`() {
+        // Device names, client labels and mDNS names may be configurable.
+        // Guard against reintroducing raw HTML insertion in the bundled page.
+        assertFalse(WebPage.HTML.contains(".innerHTML"))
+        assertTrue(WebPage.HTML.contains("createElement"))
+        assertTrue(WebPage.HTML.contains("textContent"))
+    }
+
+    @Test
+    fun `ueberlastete Webserver-Warteschlange weist Verbindungen ab`() {
+        val sockets = mutableListOf<Socket>()
+        try {
+            // Four workers plus a bounded queue cannot retain all these idle clients.
+            repeat(40) {
+                sockets += Socket("127.0.0.1", server!!.boundPort).apply {
+                    soTimeout = 150
+                }
+            }
+
+            var rejected = 0
+            for (socket in sockets) {
+                try {
+                    if (socket.getInputStream().read() == -1) rejected++
+                } catch (_: java.net.SocketTimeoutException) {
+                    // An accepted socket is waiting for the request line.
+                } catch (_: java.net.SocketException) {
+                    // Immediate close is also a valid rejection.
+                    rejected++
+                }
+            }
+            assertTrue("Expected overload sockets to be rejected", rejected > 0)
+        } finally {
+            sockets.forEach { runCatching { it.close() } }
+        }
+    }
+
+    @Test
     fun `schreibende Methoden werden abgewiesen`() {
         val response = request("POST /api/status HTTP/1.1\r\nHost: test\r\nContent-Length: 0\r\n\r\n")
         assertTrue(response.startsWith("HTTP/1.1 405"))
