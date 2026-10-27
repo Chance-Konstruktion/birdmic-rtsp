@@ -361,7 +361,7 @@ class RtspServer(
             // OPTIONS bleibt frei: Clients ermitteln damit erst, ob der Server lebt.
             val guard = auth
             if (guard != null && guard.enabled && request.method != "OPTIONS") {
-                if (!guard.verify(request.headers["authorization"], request.method)) {
+                if (!guard.verify(request.headers["authorization"], request.method, request.uri)) {
                     respond(
                         cseq, 401, "Unauthorized",
                         mapOf("WWW-Authenticate" to guard.challenge()),
