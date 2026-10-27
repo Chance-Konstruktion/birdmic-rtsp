@@ -170,6 +170,8 @@ class WebServerTest {
             "nonce=\"$nonce\", uri=\"/api/status\", response=\"${md5("$ha1:$nonce:$ha2")}\"\r\n"
 
         assertTrue(get("/api/status", header).startsWith("HTTP/1.1 200"))
+        // A valid digest header for one target must not authorize another path.
+        assertTrue(get("/log.txt", header).startsWith("HTTP/1.1 401"))
     }
 
     @Test
