@@ -368,6 +368,15 @@ class AudioEngine(
             lastError = null
             return record
         }
+        if (channels == 2) {
+            // Some devices report a valid stereo buffer size but fail to
+            // initialize AudioRecord for stereo. Retry all sources in mono
+            // before declaring the microphone unavailable.
+            Log.w(TAG, "Stereo konnte nicht initialisiert werden; erneuter Versuch in Mono")
+            channels = 1
+            lastError = null
+            return openRecorder()
+        }
         if (lastError == null) lastError = "Mikrofon konnte nicht geoeffnet werden"
         return null
     }
