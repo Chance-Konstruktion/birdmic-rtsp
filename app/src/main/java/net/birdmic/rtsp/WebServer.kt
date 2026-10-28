@@ -7,7 +7,8 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 /**
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeUnit
  *    existiert die ganze Klasse von Pfad-Angriffen hier nicht.
  *  - Kein Keep-Alive. Jede Antwort schliesst die Verbindung. Kostet ein paar
  *    Bytes Handshake je Aktualisierung und erspart uns die Zustandshaltung.
- *  - Hoechstens [MAX_WORKERS] Verbindungen gleichzeitig, 5 s Lesezeitlimit.
+ *  - Hoechstens [MAX_WORKERS] aktive Leser und [MAX_QUEUED] wartende Verbindungen; 5 s Lesezeitlimit.
  *
  * Der Ton laeuft weiter ueber RTSP. Faellt der Webserver aus oder wird er
  * abgeschaltet, merkt der Stream davon nichts -- die beiden teilen sich nur die
@@ -53,9 +54,17 @@ class WebServer(
     /** Der tatsaechlich belegte Port; bei [port] = 0 vergibt ihn das System. */
     val boundPort: Int get() = socket?.localPort ?: 0
 
-    private val workers = Executors.newFixedThreadPool(MAX_WORKERS) { r ->
-        Thread(r, "birdmic-web").apply { isDaemon = true }
-    }
+    // Executors.newFixedThreadPool verwendet eine unbegrenzte Warteschlange:
+    // langsame Clients koennten sonst unbegrenzt offene Sockets ansammeln.
+    private val workers = ThreadPoolExecutor(
+        MAX_WORKERS,
+        MAX_WORKERS,
+        0L,
+        TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue<Runnable>(MAX_QUEUED),
+        { r -> Thread(r, "birdmic-web").apply { isDaemon = true } },
+        ThreadPoolExecutor.AbortPolicy(),
+    )
 
     fun start(): Boolean {
         return try {
@@ -228,6 +237,7 @@ class WebServer(
     companion object {
         const val DEFAULT_PORT = 8080
         private const val MAX_WORKERS = 4
+        private const val MAX_QUEUED = 16
         private const val MAX_HEADERS = 32
         private const val MAX_LINE = 2048
         private const val READ_TIMEOUT_MS = 5000
