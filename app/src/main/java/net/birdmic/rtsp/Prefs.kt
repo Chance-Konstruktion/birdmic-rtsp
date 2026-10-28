@@ -6,7 +6,15 @@ import java.net.NetworkInterface
 
 /** Einstellungen, absichtlich klein gehalten. */
 class Prefs(context: Context) {
-    private val sp = context.getSharedPreferences("birdmic", Context.MODE_PRIVATE)
+    // Seit C13b liegen normale Einstellungen und Zugangsdaten getrennt.
+    // Die alte Datei wird migriert und als Ganzes von Backups ausgeschlossen.
+    private val sp = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+    private val credentials = context.getSharedPreferences(CREDENTIALS_PREFS, Context.MODE_PRIVATE)
+    private val legacySp = context.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+
+    init {
+        migrateLegacyPreferences()
+    }
 
     var port: Int
         get() = sp.getInt("port", 8554)
@@ -58,14 +66,14 @@ class Prefs(context: Context) {
         get() = sp.getInt("highpass", 0)
         set(v) = sp.edit().putInt("highpass", v).apply()
 
-    /** Leer = keine Authentifizierung. */
+    /** Leer = keine Authentifizierung; diese Werte liegen in einer ausgeschlossenen Backup-Datei. */
     var authUser: String
-        get() = sp.getString("auth_user", "") ?: ""
-        set(v) = sp.edit().putString("auth_user", v.trim()).apply()
+        get() = credentials.getString("auth_user", "") ?: ""
+        set(v) = credentials.edit().putString("auth_user", v.trim()).apply()
 
     var authPassword: String
-        get() = sp.getString("auth_password", "") ?: ""
-        set(v) = sp.edit().putString("auth_password", v).apply()
+        get() = credentials.getString("auth_password", "") ?: ""
+        set(v) = credentials.edit().putString("auth_password", v).apply()
 
     /** Meldet den Dienst als birdmic.local im Netz an. */
     var mdnsEnabled: Boolean
@@ -152,7 +160,68 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("was_running", false)
         set(v) = sp.edit().putBoolean("was_running", v).apply()
 
+    /**
+     * Die alte Datei darf auch vor der ersten App-Ausfuehrung nicht gesichert
+     * werden: Bis zur Migration koennen darin noch Zugangsdaten liegen.
+     */
+    private fun migrateLegacyPreferences() {
+        synchronized(MIGRATION_LOCK) {
+            val legacyValues = legacySp.all
+            if (legacyValues.isEmpty()) return
+
+            val settingsEditor = sp.edit()
+            val credentialsEditor = credentials.edit()
+            var settingsChanged = false
+            var credentialsChanged = false
+
+            for ((key, value) in legacyValues) {
+                if (key == "auth_user" || key == "auth_password") {
+                    if (!credentials.contains(key)) {
+                        if (!copyPreference(credentialsEditor, key, value)) return
+                        credentialsChanged = true
+                    }
+                } else if (!sp.contains(key)) {
+                    if (!copyPreference(settingsEditor, key, value)) return
+                    settingsChanged = true
+                }
+            }
+
+            // Erst beide Ziel-Dateien dauerhaft schreiben, dann die alte Datei leeren.
+            // Bei einem Schreibfehler bleibt die Quelle fuer den naechsten Start erhalten.
+            if (settingsChanged && !settingsEditor.commit()) return
+            if (credentialsChanged && !credentialsEditor.commit()) return
+            legacySp.edit().clear().commit()
+        }
+    }
+
+    private fun copyPreference(
+        editor: android.content.SharedPreferences.Editor,
+        key: String,
+        value: Any?,
+    ): Boolean {
+        when (value) {
+            null -> editor.remove(key)
+            is String -> editor.putString(key, value)
+            is Boolean -> editor.putBoolean(key, value)
+            is Int -> editor.putInt(key, value)
+            is Long -> editor.putLong(key, value)
+            is Float -> editor.putFloat(key, value)
+            is Set<*> -> {
+                if (value.any { it !is String }) return false
+                @Suppress("UNCHECKED_CAST")
+                editor.putStringSet(key, value as Set<String>)
+            }
+            else -> return false
+        }
+        return true
+    }
+
     companion object {
+        private const val SETTINGS_PREFS = "birdmic_settings"
+        private const val CREDENTIALS_PREFS = "birdmic_credentials"
+        private const val LEGACY_PREFS = "birdmic"
+        private val MIGRATION_LOCK = Any()
+
         const val DEFAULT_PATH = "audio.wav"
         const val SOURCE_AUTO = -1
 

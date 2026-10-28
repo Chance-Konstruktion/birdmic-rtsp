@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Alte Versionen speicherten Zugangsdaten in birdmic.xml. -->
+    <exclude domain="sharedpref" path="birdmic.xml" />
+    <!-- RTSP-Zugangsdaten bleiben auch nach der Migration lokal. -->
+    <exclude domain="sharedpref" path="birdmic_credentials.xml" />
+</full-backup-content>

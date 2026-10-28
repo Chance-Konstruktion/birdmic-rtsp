@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Die alte Datei kann vor der ersten Migration noch Zugangsdaten enthalten. -->
+        <exclude domain="sharedpref" path="birdmic.xml" />
+        <exclude domain="sharedpref" path="birdmic_credentials.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <!-- Gilt auch fuer die Uebertragung auf ein neues Android-Geraet. -->
+        <exclude domain="sharedpref" path="birdmic.xml" />
+        <exclude domain="sharedpref" path="birdmic_credentials.xml" />
+    </device-transfer>
+</data-extraction-rules>
