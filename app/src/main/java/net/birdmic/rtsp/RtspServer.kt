@@ -405,15 +405,20 @@ class RtspServer(
 
         private fun handleSetup(request: Request, cseq: String) {
             val transport = request.headers["transport"].orEmpty()
-            try {
+            // Die neue Transportart zuerst vollstaendig vorbereiten. Falls ein
+            // Client SETUP wiederholt (z. B. mit anderem Transport), darf der
+            // alte Sender nicht seine UDP-Sockets verlieren.
+            val nextSetup = try {
                 if (transport.contains("/TCP", ignoreCase = true)) {
                     val channels = Regex("interleaved=(\\d+)-(\\d+)").find(transport)
                     val rtpChannel = channels?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     val rtcpChannel = channels?.groupValues?.get(2)?.toIntOrNull() ?: (rtpChannel + 1)
-                    sender = RtpSender(TcpInterleavedTransport(output, rtpChannel, rtcpChannel))
-                    usesUdp = false
-                    transportHeader =
-                        "RTP/AVP/TCP;unicast;interleaved=$rtpChannel-$rtcpChannel;ssrc=${ssrcHex()}"
+                    val nextSender = RtpSender(TcpInterleavedTransport(output, rtpChannel, rtcpChannel))
+                    Triple(
+                        nextSender,
+                        false,
+                        "RTP/AVP/TCP;unicast;interleaved=$rtpChannel-$rtcpChannel;ssrc=${ssrcHex(nextSender)}",
+                    )
                 } else {
                     val ports = Regex("client_port=(\\d+)-(\\d+)").find(transport)
                     if (ports == null) {
@@ -423,16 +428,30 @@ class RtspServer(
                     val clientRtp = ports.groupValues[1].toInt()
                     val clientRtcp = ports.groupValues[2].toInt()
                     val udp = UdpTransport(socket.inetAddress, clientRtp, clientRtcp)
-                    sender = RtpSender(udp)
-                    usesUdp = true
-                    transportHeader = "RTP/AVP/UDP;unicast;client_port=$clientRtp-$clientRtcp;" +
-                        "server_port=${udp.serverRtpPort}-${udp.serverRtcpPort};ssrc=${ssrcHex()}"
+                    val nextSender = RtpSender(udp)
+                    Triple(
+                        nextSender,
+                        true,
+                        "RTP/AVP/UDP;unicast;client_port=$clientRtp-$clientRtcp;" +
+                            "server_port=${udp.serverRtpPort}-${udp.serverRtcpPort};ssrc=${ssrcHex(nextSender)}",
+                    )
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "SETUP fehlgeschlagen", e)
                 respond(cseq, 500, "Internal Server Error", emptyMap())
                 return
             }
+
+            sender?.let { previous ->
+                // Bei erneutem SETUP muss der bisherige Sender erst anhalten,
+                // bevor sein Transport geschlossen und ersetzt wird.
+                stopStreaming(joinSender = true)
+                previous.close()
+            }
+            sender = nextSetup.first
+            usesUdp = nextSetup.second
+            transportHeader = nextSetup.third
+
             val timeout = if (udpTimeoutSeconds > 0) udpTimeoutSeconds else 60
             respond(
                 cseq, 200, "OK",
@@ -455,6 +474,9 @@ class RtspServer(
                 ),
             )
             if (playingFlag.compareAndSet(false, true)) {
+                // PAUSE schliesst den Puffer, damit der Sender-Thread sicher
+                // endet. Vor PLAY muss er geleert und wieder geoeffnet werden.
+                queue.reopen()
                 // Reihenfolge ist hier wesentlich: erst vollstaendig lebendig
                 // werden, dann aufraeumen. In 2.3 stand das Abraeumen davor --
                 // dadurch galt diese Verbindung bereits als spielend, waehrend
@@ -534,7 +556,7 @@ class RtspServer(
             }
         }
 
-        private fun ssrcHex() = sender?.let { String.format("%08X", it.ssrc) } ?: "00000000"
+        private fun ssrcHex(value: RtpSender? = sender) = value?.let { String.format("%08X", it.ssrc) } ?: "00000000"
 
         /**
          * [joinSender] nur aus dem eigenen Verbindungs-Thread setzen. Aus einem
