@@ -81,6 +81,22 @@ class PacketQueue(private val capacity: Int, packetBytes: Int) {
         }
     }
 
+    /**
+     * Oeffnet die Warteschlange nach RTSP-PAUSE wieder. Alte Pakete werden
+     * verworfen, damit PLAY nicht mit Audio aus der Pause beginnt.
+     */
+    fun reopen() {
+        lock.lock()
+        try {
+            head = 0
+            count = 0
+            dropped = 0L
+            closed = false
+        } finally {
+            lock.unlock()
+        }
+    }
+
     fun close() {
         lock.lock()
         try {
