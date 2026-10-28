@@ -6,7 +6,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.security.MessageDigest
 
 /**
@@ -133,6 +135,31 @@ class WebServerTest {
             "nonce=\"$nonce\", uri=\"/api/status\", response=\"${md5("$ha1:$nonce:$ha2")}\"\r\n"
 
         assertTrue(get("/api/status", header).startsWith("HTTP/1.1 200"))
+    }
+
+    @Test
+    fun `ueberlastete Warteschlange weist weitere Verbindungen ab`() {
+        // Vier aktive Leser, maximal sechzehn wartende Verbindungen. Weitere
+        // Sockets muessen geschlossen werden, statt unbegrenzt auf Bearbeitung
+        // zu warten.
+        val sockets = (1..40).map {
+            Socket("127.0.0.1", server!!.boundPort).apply { soTimeout = 50 }
+        }
+        try {
+            Thread.sleep(100) // dem Accept-Thread Zeit geben, den Burst abzuarbeiten
+            val rejected = sockets.count { client ->
+                try {
+                    client.getInputStream().read() == -1
+                } catch (_: SocketTimeoutException) {
+                    false // aktiver oder wartender Leser
+                } catch (_: IOException) {
+                    true // vom Server geschlossen
+                }
+            }
+            assertTrue("Ueberzaehlige Verbindungen wurden nicht abgewiesen", rejected > 0)
+        } finally {
+            sockets.forEach { runCatching { it.close() } }
+        }
     }
 
     @Test
