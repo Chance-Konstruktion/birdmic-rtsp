@@ -128,6 +128,23 @@ class PacketQueueTest {
     }
 
     @Test
+    fun `nach Pause kann die Warteschlange wieder Audio liefern`() {
+        val queue = PacketQueue(2, 4)
+        queue.offer(packet(1), 4)
+        queue.close()
+        queue.offer(packet(2), 4) // waehrend der Pause ignoriert
+
+        queue.reopen()
+        queue.offer(packet(3), 4)
+
+        val dest = ByteArray(4)
+        assertEquals(4, queue.take(dest, 10))
+        assertEquals("Altes Audio aus vor der Pause darf nicht nachlaufen", 3.toByte(), dest[0])
+        assertEquals(0L, queue.dropped)
+        assertEquals(-1, queue.take(dest, 10))
+    }
+
+    @Test
     fun `nach dem Schliessen wird nichts mehr angenommen`() {
         val queue = PacketQueue(2, 4)
         queue.close()
